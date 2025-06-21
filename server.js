@@ -144,8 +144,15 @@ io.on('connection', (socket) => {
 
 socket.on('leaveRoom', ({ roomId, userId }) => {
   socket.leave(roomId);
-  console.log(`🚪 ${userId} left room ${roomId}`);
+  console.log(`${userId} left room ${roomId}`);
+
+  // Remove from online users if you're using room-level presence
+  onlineUsers.delete(userId); // ✅ optional: if room defines "online"
+
+  // Notify others
+  socket.broadcast.emit('user-offline', userId);
 });
+
 
 
 socket.on('register-user', (userId) => {
@@ -269,11 +276,10 @@ socket.on('markAsRead', async ({ roomId, userId }) => {
 // });
      // Handle online check
 
-  socket.on('check-online', (receiverId) => {
+socket.on('check-online', (receiverId) => {
   const isOnline = onlineUsers.has(receiverId);
   socket.emit('user-online-status', { userId: receiverId, isOnline });
 });
-
 
 // When user starts typing
 // Example: user A is typing to user B
@@ -291,10 +297,14 @@ socket.on('stop-typing', ({ to, from }) => {
   }
 });
 
-      socket.on('logout-user', userId => {
-    onlineUsers.delete(userId);
-    console.log(`${userId} logged out manually`);
-  });
+
+  socket.on('logout-user', userId => {
+  onlineUsers.delete(userId);
+  console.log(`${userId} logged out manually`);
+
+  // ✅ Emit offline event too
+  socket.broadcast.emit('user-offline', userId);
+});
 
 
   socket.on('disconnect', () => {
