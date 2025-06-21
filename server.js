@@ -27,6 +27,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_SECRET
 });
 
+// Multer setup (in-memory storage)
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 const mongoUsername = process.env.MONGO_USERNAME;
 const mongoPassword = process.env.MONGO_PASSWORD;
