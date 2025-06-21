@@ -269,10 +269,11 @@ socket.on('markAsRead', async ({ roomId, userId }) => {
 // });
      // Handle online check
 
-     socket.on('check-online', (userId) => {
-    const isOnline = onlineUsers.has(userId);
-    socket.emit('user-online-status', { userId, isOnline });
-  });
+  socket.on('check-online', (receiverId) => {
+  const isOnline = onlineUsers.has(receiverId);
+  socket.emit('user-online-status', { userId: receiverId, isOnline });
+});
+
 
 // When user starts typing
 // Example: user A is typing to user B
