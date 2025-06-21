@@ -153,35 +153,61 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} left room ${roomId}`);
   });
 
-
     socket.on('sendMessage', async ({ roomId, msg }) => {
   try {
+    if (!msg) {
+      console.error('❌ Invalid message payload: msg is missing');
+      return;
+    }
+
     const savedMsg = await ChatMessage.create({
-      text: msg.text,
-      imageUrl:  msg.imageUrl,
+      text: msg.text || '',
+      imageUrl: msg.imageUrl || '',
       senderId: msg.senderId,
       receiverId: msg.receiverId,
       roomId,
-      status: 'sent'
+      status: 'sent',
     });
 
-    // Emit to everyone in room (both users should have joined)
     io.to(roomId).emit('newMessage', savedMsg);
 
-    // If receiver is online (optional)
     const receiverSocketId = onlineUsers.get(msg.receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
-
-      await ChatMessage.findByIdAndUpdate(savedMsg._id, {
-        status: 'delivered'
-      });
+      await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
     }
-
   } catch (err) {
     console.error('❌ Error saving message:', err.message);
   }
 });
+//     socket.on('sendMessage', async ({ roomId, msg }) => {
+//   try {
+//     const savedMsg = await ChatMessage.create({
+//       text: msg.text,
+//       imageUrl:  msg.imageUrl,
+//       senderId: msg.senderId,
+//       receiverId: msg.receiverId,
+//       roomId,
+//       status: 'sent'
+//     });
+
+//     // Emit to everyone in room (both users should have joined)
+//     io.to(roomId).emit('newMessage', savedMsg);
+
+//     // If receiver is online (optional)
+//     const receiverSocketId = onlineUsers.get(msg.receiverId);
+//     if (receiverSocketId) {
+//       io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
+
+//       await ChatMessage.findByIdAndUpdate(savedMsg._id, {
+//         status: 'delivered'
+//       });
+//     }
+
+//   } catch (err) {
+//     console.error('❌ Error saving message:', err.message);
+//   }
+// });
 
 
 //   socket.on('sendMessage', async ({ roomId, msg }) => {
