@@ -142,16 +142,19 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
 
-   socket.on('register-user', (userId) => {
+socket.on('register-user', (userId) => {
+  socket.userId = userId; // Attach userId to the socket
   onlineUsers.set(userId, socket.id);
   console.log(`${userId} is now online`);
+
+  // Notify others
+  socket.broadcast.emit('user-online', userId);
 });
 
-
   socket.on('leaveRoom', (roomId) => {
-    socket.leave(roomId);
-    console.log(`Socket ${socket.id} left room ${roomId}`);
-  });
+  socket.leave(roomId);
+  console.log(`Socket ${socket.id} left room ${roomId}`);
+});
 
     socket.on('sendMessage', async ({ roomId, msg }) => {
   try {
@@ -292,16 +295,11 @@ socket.on('stop-typing', ({ to, from }) => {
   });
 
  socket.on('disconnect', () => {
-  for (let [userId, sockId] of onlineUsers.entries()) {
-    if (sockId === socket.id) {
-      onlineUsers.delete(userId);
-      console.log(`${userId} went offline`);
-      io.emit('user-offline', userId); // broadcast to others if needed
-      break;
-    }
+  if (socket.userId) {
+    onlineUsers.delete(socket.userId);
+    socket.broadcast.emit('user-offline', socket.userId);
   }
 });
-
 
 
     // socket.on('joinRoom', ({ roomId, userId }) => {
