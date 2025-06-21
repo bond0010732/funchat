@@ -136,11 +136,17 @@ app.get('/api/messages/:roomId', async (req, res) => {
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
 
+  socket.on('joinRoom', ({ roomId, userId }) => {
+  socket.userId = userId; // Attach to socket
+  socket.join(roomId);
+  console.log(`✅ ${userId} joined room ${roomId}`);
+});
 
-    socket.on('joinRoom', (roomId) => {
-    socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room ${roomId}`);
-  });
+socket.on('leaveRoom', ({ roomId, userId }) => {
+  socket.leave(roomId);
+  console.log(`🚪 ${userId} left room ${roomId}`);
+});
+
 
 socket.on('register-user', (userId) => {
   socket.userId = userId; // Attach userId to the socket
@@ -149,11 +155,6 @@ socket.on('register-user', (userId) => {
 
   // Notify others
   socket.broadcast.emit('user-online', userId);
-});
-
-  socket.on('leaveRoom', (roomId) => {
-  socket.leave(roomId);
-  console.log(`Socket ${socket.id} left room ${roomId}`);
 });
 
     socket.on('sendMessage', async ({ roomId, msg }) => {
@@ -294,9 +295,10 @@ socket.on('stop-typing', ({ to, from }) => {
     console.log(`${userId} logged out manually`);
   });
 
- socket.on('disconnect', () => {
+
+  socket.on('disconnect', () => {
   if (socket.userId) {
-    onlineUsers.delete(socket.userId);
+    console.log(`⚠️ ${socket.userId} disconnected`);
     socket.broadcast.emit('user-offline', socket.userId);
   }
 });
