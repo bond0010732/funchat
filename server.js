@@ -81,18 +81,31 @@ const onlineUsers = new Map(); // userId -> socketId
 //   }
 // });
 
-app.post('/upload', upload.single('image'), async (req, res) => {
+app.post('/api/upload', upload.single('image'), async (req, res) => {
   try {
-    const result = await cloudinary.uploader.upload_stream({ resource_type: 'image' }, (err, result) => {
-      if (err) return res.status(500).json({ error: 'Upload failed' });
-      res.json({ imageUrl: result.secure_url });
-    });
-    req.file.stream.pipe(result);
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ error: 'No image file received' });
+    }
+
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'chat_images' }, // Optional: put in a folder
+      (error, result) => {
+        if (error) {
+          console.error('❌ Cloudinary upload failed:', error);
+          return res.status(500).json({ error: 'Cloudinary upload failed' });
+        }
+
+        return res.json({ imageUrl: result.secure_url });
+      }
+    );
+
+    stream.end(req.file.buffer);
   } catch (err) {
-    console.error('Image upload error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Upload route error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
