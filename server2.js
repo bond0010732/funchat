@@ -14,19 +14,9 @@ const server = http.createServer(app);
 const io = socketIo(server);
 const expo = new Expo();
 
-const multer = require('multer');
-const { v2: cloudinary } = require('cloudinary');
-
 const rooms = {};
 const messages = {};
 const unreadMessages = {};
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET
-});
-
 
 const mongoUsername = process.env.MONGO_USERNAME;
 const mongoPassword = process.env.MONGO_PASSWORD;
@@ -46,75 +36,23 @@ mongoose.connect(uri, {
     // ✅ Message Schema
 const chatMessageSchema = new mongoose.Schema({
   text: String,
-  imageUrl: String, // ✅ New field for image
   senderId: String,
   receiverId: String,
   roomId: String,
   timestamp: { type: Date, default: Date.now },
-
-  // ✅ Status tracking
-  status: {
-    type: String,
-    enum: ['sent', 'delivered', 'read'],
-    default: 'sent'
-  },
-  readAt: Date
 });
-
 
 const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 
-const onlineUsers = new Map(); // userId -> socketId
-
-// app.get('/api/messages/:roomId', async (req, res) => {
-//   const { roomId } = req.params;
-
-//   try {
-//     const messages = await ChatMessage.find({ roomId }).sort({ timestamp: 1 }).limit(50);
-//     res.json(messages);
-//   } catch (err) {
-//     console.error('Error fetching messages:', err);
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// });
-
-app.post('/upload', upload.single('image'), async (req, res) => {
-  try {
-    const result = await cloudinary.uploader.upload_stream({ resource_type: 'image' }, (err, result) => {
-      if (err) return res.status(500).json({ error: 'Upload failed' });
-      res.json({ imageUrl: result.secure_url });
-    });
-    req.file.stream.pipe(result);
-  } catch (err) {
-    console.error('Image upload error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
+// ✅ REST endpoint to get message history
 app.get('/api/messages/:roomId', async (req, res) => {
-  const { roomId } = req.params;
-  const { before, limit = 50 } = req.query;
-
   try {
-    const query = { roomId };
-
-    if (before) {
-      query.timestamp = { $lt: new Date(before) };
-    }
-
-    const messages = await ChatMessage.find(query)
-      .sort({ timestamp: -1 }) // latest first
-      .limit(parseInt(limit));
-
-    // Send oldest → newest
-    res.json(messages.reverse());
+    const messages = await ChatMessage.find({ roomId: req.params.roomId }).sort({ timestamp: 1 });
+    res.json(messages);
   } catch (err) {
-    console.error('❌ Error fetching messages:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Failed to load messages' });
   }
 });
-
-
 
 // Initialize Socket.IO
 io.on('connection', (socket) => {
@@ -126,141 +64,31 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
 
-   socket.on('register-user', (userId) => {
-  onlineUsers.set(userId, socket.id);
-  console.log(`${userId} is now online`);
-});
-
-
   socket.on('leaveRoom', (roomId) => {
     socket.leave(roomId);
     console.log(`Socket ${socket.id} left room ${roomId}`);
   });
 
-
-    socket.on('sendMessage', async ({ roomId, msg }) => {
-  try {
-    const savedMsg = await ChatMessage.create({
-      text: msg.text,
-      imageUrl:  msg.imageUrl,
-      senderId: msg.senderId,
-      receiverId: msg.receiverId,
-      roomId,
-      status: 'sent'
-    });
-
-    // Emit to everyone in room (both users should have joined)
-    io.to(roomId).emit('newMessage', savedMsg);
-
-    // If receiver is online (optional)
-    const receiverSocketId = onlineUsers.get(msg.receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
-
-      await ChatMessage.findByIdAndUpdate(savedMsg._id, {
-        status: 'delivered'
-      });
-    }
-
-  } catch (err) {
-    console.error('❌ Error saving message:', err.message);
-  }
-});
-
-
-//   socket.on('sendMessage', async ({ roomId, msg }) => {
-//   try {
-//     const savedMsg = await ChatMessage.create({
-//       text: msg.text,
-//       senderId: msg.senderId,
-//       receiverId: msg.receiverId,
-//       roomId,
-//       status: 'sent' // Initial status
-//     });
-
-//     io.to(roomId).emit('newMessage', savedMsg);
-
-//     // Emit "delivered" if receiver is online
-//     const receiverSocket = onlineUsers.get(msg.receiverId);
-//     if (receiverSocket) {
-//       io.to(receiverSocket).emit('message-delivered', savedMsg._id);
-
-//       await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
-//     }
-
-//   } catch (err) {
-//     console.error('Error saving message:', err);
-//   }
-// });
-
-
-socket.on('markAsRead', async ({ roomId, userId }) => {
-  try {
-    const result = await ChatMessage.updateMany(
-      {
+   socket.on('sendMessage', async ({ roomId, msg }) => {
+    try {
+      // Save message to MongoDB
+      const savedMsg = await ChatMessage.create({
+        text: msg.text,
+        senderId: msg.senderId,
+        receiverId: msg.receiverId,
         roomId,
-        receiverId: userId,      // sent to me
-        status: { $ne: 'read' },
-      },
-      {
-        status: 'read',
-        readAt: new Date(),
-      }
-    );
+      });
 
-    io.to(roomId).emit('messages-read', { userId });
-
-  } catch (err) {
-    console.error('❌ Error marking messages as read:', err);
-  }
-});
-
-
-    // On connection
-// socket.on('check-online', (userId) => {
-//   const isUserOnline = onlineUsers.includes(userId); // however you track this
-//   socket.emit('user-online-status', isUserOnline);
-// });
-     // Handle online check
-
-     socket.on('check-online', (userId) => {
-    const isOnline = onlineUsers.has(userId);
-    socket.emit('user-online-status', { userId, isOnline });
-  });
-
-// When user starts typing
-// Example: user A is typing to user B
-socket.on('typing', ({ to, from }) => {
-  const toSocket = onlineUsers.get(to);
-  if (toSocket) {
-    io.to(toSocket).emit('typing', from); // send sender userId
-  }
-});
-
-socket.on('stop-typing', ({ to, from }) => {
-  const toSocket = onlineUsers.get(to);
-  if (toSocket) {
-    io.to(toSocket).emit('stop-typing', from);
-  }
-});
-
-      socket.on('logout-user', userId => {
-    onlineUsers.delete(userId);
-    console.log(`${userId} logged out manually`);
-  });
-
- socket.on('disconnect', () => {
-  for (let [userId, sockId] of onlineUsers.entries()) {
-    if (sockId === socket.id) {
-      onlineUsers.delete(userId);
-      console.log(`${userId} went offline`);
-      io.emit('user-offline', userId); // broadcast to others if needed
-      break;
+      // Emit to clients in room
+      io.to(roomId).emit('newMessage', savedMsg);
+    } catch (err) {
+      console.error('Error saving message:', err);
     }
-  }
-});
+  });
 
-
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
 
     // socket.on('joinRoom', ({ roomId, userId }) => {
     //     socket.join(roomId);
