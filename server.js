@@ -14,7 +14,7 @@ const server = http.createServer(app);
 const io = socketIo(server);
 const expo = new Expo();
 
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+//const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
 
@@ -37,7 +37,7 @@ const videoStorage = new CloudinaryStorage({
   },
 });
 
-const VideoUpload = multer({ storage: videoStorage });
+const videoUpload = multer({ storage: videoStorage });
 // Multer setup (in-memory storage)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -94,10 +94,25 @@ const onlineUsers = new Map(); // userId -> socketId
 //   }
 // });
 
-app.post('/api/upload/video', VideoUpload.single('video'), async (req, res) => {
+app.post('/api/upload/video', videoUpload.single('video'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No video uploaded' });
 
-  return res.json({ videoUrl: req.file.path });
+  const stream = cloudinary.uploader.upload_stream(
+    {
+      resource_type: 'video',
+      folder: 'chat_videos',
+    },
+    (error, result) => {
+      if (error) {
+        console.error('❌ Cloudinary upload failed:', error);
+        return res.status(500).json({ error: 'Cloudinary upload failed' });
+      }
+
+      res.json({ videoUrl: result.secure_url });
+    }
+  );
+
+  stream.end(req.file.buffer);
 });
 
 
