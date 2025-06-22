@@ -14,6 +14,7 @@ const server = http.createServer(app);
 const io = socketIo(server);
 const expo = new Expo();
 
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 const { v2: cloudinary } = require('cloudinary');
 
