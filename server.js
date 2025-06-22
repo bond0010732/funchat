@@ -37,10 +37,11 @@ cloudinary.config({
 //   },
 // });
 
-const videoUpload = multer({ storage });
+
 // Multer setup (in-memory storage)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+const videoUpload = multer({ storage });
 
 const mongoUsername = process.env.MONGO_USERNAME;
 const mongoPassword = process.env.MONGO_PASSWORD;
