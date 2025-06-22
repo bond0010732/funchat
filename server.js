@@ -28,16 +28,16 @@ cloudinary.config({
   api_secret: process.env.API_SECRET
 });
 
-const videoStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: 'chat_videos',
-    resource_type: 'video',
-    format: 'mp4',
-  },
-});
+// const videoStorage = new CloudinaryStorage({
+//   cloudinary,
+//   params: {
+//     folder: 'chat_videos',
+//     resource_type: 'video',
+//     format: 'mp4',
+//   },
+// });
 
-const videoUpload = multer({ storage: videoStorage });
+const videoUpload = multer({ storage });
 // Multer setup (in-memory storage)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
