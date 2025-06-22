@@ -50,6 +50,8 @@ mongoose.connect(uri, {
 const chatMessageSchema = new mongoose.Schema({
   text: String,
   imageUrl: String, // ✅ New field for image
+  gifUrl: { type: String },
+  videoUrl: { type: String },
   senderId: String,
   receiverId: String,
   roomId: String,
@@ -174,6 +176,8 @@ socket.on('register-user', (userId) => {
     const savedMsg = await ChatMessage.create({
       text: msg.text || '',
       imageUrl: msg.imageUrl || '',
+      gifUrl: msg.gifUrl,
+      videoUrl: msg.videoUrl,
       senderId: msg.senderId,
       receiverId: msg.receiverId,
       roomId,
