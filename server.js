@@ -200,13 +200,15 @@ socket.on('register-user', (userId) => {
   socket.broadcast.emit('user-online', userId);
 });
 
-    socket.on('sendMessage', async ({ roomId, msg }) => {
+
+  socket.on('sendMessage', async ({ roomId, msg }) => {
   try {
     if (!msg) {
       console.error('❌ Invalid message payload: msg is missing');
       return;
     }
 
+    // Save the message
     const savedMsg = await ChatMessage.create({
       text: msg.text || '',
       imageUrl: msg.imageUrl || '',
@@ -218,17 +220,67 @@ socket.on('register-user', (userId) => {
       status: 'sent',
     });
 
+    // Emit to room
     io.to(roomId).emit('newMessage', savedMsg);
 
+    // Handle delivery
     const receiverSocketId = onlineUsers.get(msg.receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
       await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
     }
+
+    // 🔔 Fetch receiver's push token
+    const receiverUser = await User.findById(msg.receiverId);
+    const senderUser = await User.findById(msg.senderId); // for full name
+
+    if (receiverUser?.expoPushToken) {
+      await sendPushNotification(
+        receiverUser.expoPushToken,
+        msg.text || 'You have a new message',
+        msg.text || '[Media Message]',
+        senderUser?.fullName || 'Someone'
+      );
+    }
+
   } catch (err) {
     console.error('❌ Error saving message:', err.message);
   }
 });
+
+
+//     socket.on('sendMessage', async ({ roomId, msg }) => {
+//   try {
+//     if (!msg) {
+//       console.error('❌ Invalid message payload: msg is missing');
+//       return;
+//     }
+
+//     const savedMsg = await ChatMessage.create({
+//       text: msg.text || '',
+//       imageUrl: msg.imageUrl || '',
+//       gifUrl: msg.gifUrl,
+//       videoUrl: msg.videoUrl,
+//       senderId: msg.senderId,
+//       receiverId: msg.receiverId,
+//       roomId,
+//       status: 'sent',
+//     });
+
+//     io.to(roomId).emit('newMessage', savedMsg);
+
+//     const receiverSocketId = onlineUsers.get(msg.receiverId);
+//     if (receiverSocketId) {
+//       io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
+//       await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
+//     }
+//   } catch (err) {
+//     console.error('❌ Error saving message:', err.message);
+//   }
+// });
+
+
+  
 //     socket.on('sendMessage', async ({ roomId, msg }) => {
 //   try {
 //     const savedMsg = await ChatMessage.create({
@@ -258,31 +310,6 @@ socket.on('register-user', (userId) => {
 //   }
 // });
 
-
-//   socket.on('sendMessage', async ({ roomId, msg }) => {
-//   try {
-//     const savedMsg = await ChatMessage.create({
-//       text: msg.text,
-//       senderId: msg.senderId,
-//       receiverId: msg.receiverId,
-//       roomId,
-//       status: 'sent' // Initial status
-//     });
-
-//     io.to(roomId).emit('newMessage', savedMsg);
-
-//     // Emit "delivered" if receiver is online
-//     const receiverSocket = onlineUsers.get(msg.receiverId);
-//     if (receiverSocket) {
-//       io.to(receiverSocket).emit('message-delivered', savedMsg._id);
-
-//       await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
-//     }
-
-//   } catch (err) {
-//     console.error('Error saving message:', err);
-//   }
-// });
 
 
 socket.on('markAsRead', async ({ roomId, userId }) => {
@@ -471,33 +498,33 @@ socket.on('stop-typing', ({ to, from }) => {
 });
 
 // Push Notification Function
-// async function sendPushNotification(expoPushToken, author, message, senderFullName) {
-//     try {
-//         if (!Expo.isExpoPushToken(expoPushToken)) {
-//             console.error(`Invalid Expo push token: ${expoPushToken}`);
-//             return;
-//         }
+async function sendPushNotification(expoPushToken, author, message, senderFullName) {
+    try {
+        if (!Expo.isExpoPushToken(expoPushToken)) {
+            console.error(`Invalid Expo push token: ${expoPushToken}`);
+            return;
+        }
 
-//         const messages = [{
-//             to: expoPushToken,
-//             sound: "default",
-//             title: `New message from ${senderFullName}`,
-//             body: message,
-//             data: { message, author },
-//         }];
+        const messages = [{
+            to: expoPushToken,
+            sound: "default",
+            title: `New message from ${senderFullName}`,
+            body: message,
+            data: { message, author },
+        }];
 
-//         const chunks = expo.chunkPushNotifications(messages);
-//         for (let chunk of chunks) {
-//             try {
-//                 await expo.sendPushNotificationsAsync(chunk);
-//             } catch (error) {
-//                 console.error("Error sending push notification chunk:", error);
-//             }
-//         }
-//     } catch (error) {
-//         console.error("Error sending push notification:", error);
-//     }
-// }
+        const chunks = expo.chunkPushNotifications(messages);
+        for (let chunk of chunks) {
+            try {
+                await expo.sendPushNotificationsAsync(chunk);
+            } catch (error) {
+                console.error("Error sending push notification chunk:", error);
+            }
+        }
+    } catch (error) {
+        console.error("Error sending push notification:", error);
+    }
+}
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
