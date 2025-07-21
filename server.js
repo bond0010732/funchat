@@ -191,14 +191,40 @@ socket.on('leaveRoom', ({ roomId, userId }) => {
 
 
 
-socket.on('register-user', (userId) => {
-  socket.userId = userId; // Attach userId to the socket
+socket.on('register-user', async (userId) => {
+  socket.userId = userId;
   onlineUsers.set(userId, socket.id);
   console.log(`${userId} is now online`);
 
   // Notify others
   socket.broadcast.emit('user-online', userId);
+
+  // Check if there are undelivered messages for this user (user is receiver)
+  const undeliveredMessages = await ChatMessage.find({
+    receiver: userId,
+    delivered: false
+  });
+
+  if (undeliveredMessages.length > 0) {
+    // Send them to the user (if needed)
+    socket.emit('undelivered-messages', undeliveredMessages);
+
+    // Mark messages as delivered
+    await ChatMessage.updateMany(
+      { receiver: userId, delivered: false },
+      { $set: { delivered: true, deliveredAt: new Date() } }
+    );
+
+    // Send 'message-delivered' event to senders
+    undeliveredMessages.forEach((msg) => {
+      const senderSocketId = onlineUsers.get(msg.sender.toString());
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('message-delivered', msg._id);
+      }
+    });
+  }
 });
+
 
 
 socket.on('sendMessage', async ({ roomId, msg }) => {
