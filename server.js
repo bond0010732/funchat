@@ -238,7 +238,6 @@ socket.on('register-user', (userId) => {
       await sendPushNotification(
         receiverUser.expoPushToken,
         msg.text || 'You have a new message',
-        msg.text || '[Media Message]',
         senderUser?.fullName || 'Someone'
       );
     }
@@ -498,7 +497,7 @@ socket.on('stop-typing', ({ to, from }) => {
 });
 
 // Push Notification Function
-async function sendPushNotification(expoPushToken, author, message, senderFullName) {
+async function sendPushNotification(expoPushToken, message, senderFullName) {
     try {
         if (!Expo.isExpoPushToken(expoPushToken)) {
             console.error(`Invalid Expo push token: ${expoPushToken}`);
@@ -510,7 +509,7 @@ async function sendPushNotification(expoPushToken, author, message, senderFullNa
             sound: "default",
             title: `New message from ${senderFullName}`,
             body: message,
-            data: { message, author },
+            data: { message },
         }];
 
         const chunks = expo.chunkPushNotifications(messages);
