@@ -201,14 +201,14 @@ socket.on('register-user', (userId) => {
 });
 
 
-  socket.on('sendMessage', async ({ roomId, msg }) => {
+socket.on('sendMessage', async ({ roomId, msg }) => {
   try {
     if (!msg) {
       console.error('❌ Invalid message payload: msg is missing');
       return;
     }
 
-    // Save the message
+    // Save message to DB
     const savedMsg = await ChatMessage.create({
       text: msg.text || '',
       imageUrl: msg.imageUrl || '',
@@ -223,25 +223,26 @@ socket.on('register-user', (userId) => {
     // Emit to room
     io.to(roomId).emit('newMessage', savedMsg);
 
-    // Handle delivery
+    // Check if receiver is online
     const receiverSocketId = onlineUsers.get(msg.receiverId);
+
     if (receiverSocketId) {
+      // ✅ Receiver is online -> deliver and update status
       io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
       await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
+    } else {
+      // ❌ Receiver is offline -> send push notification
+      const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
+      const senderUser = await OdinCircledbModel.findById(msg.senderId);
+
+      if (receiverUser?.expoPushToken) {
+        await sendPushNotification(
+          receiverUser.expoPushToken,
+          msg.text || '[Media Message]',
+          senderUser?.fullName || 'Someone'
+        );
+      }
     }
-
-    // 🔔 Fetch receiver's push token
-    const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
-    const senderUser = await OdinCircledbModel.findById(msg.senderId); // for full name
-
-    if (receiverUser?.expoPushToken) {
-      await sendPushNotification(
-        receiverUser.expoPushToken,
-        msg.text || 'You have a new message',
-        senderUser?.fullName || 'Someone'
-      );
-    }
-
   } catch (err) {
     console.error('❌ Error saving message:', err.message);
   }
@@ -373,11 +374,11 @@ socket.on('stop-typing', ({ to, from }) => {
 
   socket.on('disconnect', () => {
   if (socket.userId) {
-    console.log(`⚠️ ${socket.userId} disconnected`);
+    onlineUsers.delete(socket.userId);
+    console.log(`${socket.userId} is now offline`);
     socket.broadcast.emit('user-offline', socket.userId);
   }
 });
-
 
     // socket.on('joinRoom', ({ roomId, userId }) => {
     //     socket.join(roomId);
