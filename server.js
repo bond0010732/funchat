@@ -498,31 +498,44 @@ socket.on('stop-typing', ({ to, from }) => {
 
 // Push Notification Function
 async function sendPushNotification(expoPushToken, message, senderFullName) {
-    try {
-        if (!Expo.isExpoPushToken(expoPushToken)) {
-            console.error(`Invalid Expo push token: ${expoPushToken}`);
-            return;
-        }
+  try {
+    console.log("🔔 Preparing to send notification...");
+    console.log("Expo Push Token:", expoPushToken);
+    console.log("Message Body:", message);
+    console.log("Sender Name:", senderFullName);
 
-        const messages = [{
-            to: expoPushToken,
-            sound: "default",
-            title: `New message from ${senderFullName}`,
-            body: message,
-            data: { message },
-        }];
-
-        const chunks = expo.chunkPushNotifications(messages);
-        for (let chunk of chunks) {
-            try {
-                await expo.sendPushNotificationsAsync(chunk);
-            } catch (error) {
-                console.error("Error sending push notification chunk:", error);
-            }
-        }
-    } catch (error) {
-        console.error("Error sending push notification:", error);
+    // Validate token
+    if (!Expo.isExpoPushToken(expoPushToken)) {
+      console.error(`❌ Invalid Expo push token: ${expoPushToken}`);
+      return;
     }
+
+    const messages = [{
+      to: expoPushToken,
+      sound: "default",
+      title: `New message from ${senderFullName}`,
+      body: message,
+      data: { message, senderFullName },
+    }];
+
+    console.log("📦 Messages to send:", messages);
+
+    const chunks = expo.chunkPushNotifications(messages);
+    console.log(`🔹 Split into ${chunks.length} chunk(s).`);
+
+    for (const [index, chunk] of chunks.entries()) {
+      try {
+        console.log(`🚀 Sending chunk ${index + 1}:`, chunk);
+        const receipts = await expo.sendPushNotificationsAsync(chunk);
+        console.log(`✅ Chunk ${index + 1} receipts:`, receipts);
+      } catch (chunkError) {
+        console.error(`❌ Error sending push notification chunk ${index + 1}:`, chunkError);
+      }
+    }
+
+  } catch (error) {
+    console.error("❌ Error sending push notification:", error);
+  }
 }
 
 const PORT = process.env.PORT || 5000;
