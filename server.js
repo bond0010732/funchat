@@ -231,8 +231,8 @@ socket.on('register-user', (userId) => {
     }
 
     // 🔔 Fetch receiver's push token
-    const receiverUser = await User.findById(msg.receiverId);
-    const senderUser = await User.findById(msg.senderId); // for full name
+    const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
+    const senderUser = await OdinCircledbModel.findById(msg.senderId); // for full name
 
     if (receiverUser?.expoPushToken) {
       await sendPushNotification(
