@@ -216,27 +216,64 @@ app.get('/api/messages/status', async (req, res) => {
   const { roomId, userId } = req.query;
 
   try {
-    const deliveredMessages = await ChatMessage.find({
+    const messages = await ChatMessage.find({
       roomId,
-      senderId: userId, // messages sent by the current user
-      status: 'delivered',
-    }).select('_id');
+      receiverId: userId,
+      status: 'sent',
+    });
 
-    const readMessages = await ChatMessage.find({
-      roomId,
-      senderId: userId,
-      status: 'read',
-    }).select('_id');
+    const deliveredIds = [];
 
-    const deliveredIds = deliveredMessages.map((msg) => msg._id.toString());
-    const readIds = readMessages.map((msg) => msg._id.toString());
+    for (const msg of messages) {
+      msg.status = 'delivered';
+      msg.deliveredAt = new Date();
+      await msg.save();
 
-    res.json({ deliveredIds, readIds });
+      deliveredIds.push(msg._id);
+
+      // Emit to sender
+      const senderSocket = onlineUsers.get(msg.senderId.toString());
+      if (senderSocket) {
+        io.to(senderSocket).emit('message-delivered', {
+          messageId: msg._id,
+          roomId: msg.roomId,
+        });
+      }
+    }
+
+    res.json({ delivered: deliveredIds });
   } catch (err) {
-    console.error('❌ Failed to fetch status updates:', err);
-    res.status(500).json({ error: 'Failed to fetch statuses' });
+    console.error('❌ Error updating message status:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
+
+
+// app.get('/api/messages/status', async (req, res) => {
+//   const { roomId, userId } = req.query;
+
+//   try {
+//     const deliveredMessages = await ChatMessage.find({
+//       roomId,
+//       senderId: userId, // messages sent by the current user
+//       status: 'sent',
+//     }).select('_id');
+
+//     const readMessages = await ChatMessage.find({
+//       roomId,
+//       senderId: userId,
+//       status: 'read',
+//     }).select('_id');
+
+//     const deliveredIds = deliveredMessages.map((msg) => msg._id.toString());
+//     const readIds = readMessages.map((msg) => msg._id.toString());
+
+//     res.json({ deliveredIds, readIds });
+//   } catch (err) {
+//     console.error('❌ Failed to fetch status updates:', err);
+//     res.status(500).json({ error: 'Failed to fetch statuses' });
+//   }
+// });
 
 
 
