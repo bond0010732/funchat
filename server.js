@@ -369,6 +369,7 @@ socket.on('markAsRead', async ({ roomId, userId }) => {
 
 socket.on('check-online', (receiverId) => {
   const isOnline = onlineUsers.has(receiverId);
+  console.log(`🧠 [Server] ${receiverId} is ${isOnline ? '🟢 online' : '🔴 offline'}`);
   socket.emit('user-online-status', { userId: receiverId, isOnline });
 });
 
