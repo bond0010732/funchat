@@ -474,43 +474,43 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
 
 
 
-  socket.on('markAsRead', async ({ roomId, userId }) => {
+ socket.on('markAsRead', async ({ roomId, userId }) => {
   try {
+    // Step 1: Get all unread messages first (before update)
+    const unreadMessages = await ChatMessage.find({
+      roomId,
+      receiverId: userId,
+      status: { $ne: 'read' },
+    }).select('_id senderId');
+
+    if (unreadMessages.length === 0) return;
+
+    const messageIds = unreadMessages.map((msg) => msg._id);
+    const senderIds = [...new Set(unreadMessages.map((msg) => msg.senderId.toString()))];
+
+    // Step 2: Mark them as read
     const result = await ChatMessage.updateMany(
-      {
-        roomId,
-        receiverId: userId,
-        status: { $ne: 'read' },
-      },
+      { _id: { $in: messageIds } },
       {
         status: 'read',
         readAt: new Date(),
       }
     );
 
-    if (result.modifiedCount > 0) {
-      const readMessages = await ChatMessage.find({
-        roomId,
-        receiverId: userId,
+    // Step 3: Notify each sender
+    for (const senderId of senderIds) {
+      io.to(senderId).emit('message-status-updated', {
+        messageIds,
         status: 'read',
-      }).select('_id sender');
-
-      const messageIds = readMessages.map((msg) => msg._id);
-      const senderIds = [...new Set(readMessages.map((msg) => msg.sender.toString()))];
-
-      for (const senderId of senderIds) {
-        io.to(senderId).emit('message-status-updated', {
-          messageIds,
-          status: 'read',
-        });
-      }
-
-      console.log(`✅ Marked ${result.modifiedCount} messages as read`);
+      });
     }
+
+    console.log(`✅ Marked ${result.modifiedCount} messages as read`);
   } catch (err) {
     console.error('❌ Error marking messages as read:', err);
   }
 });
+
 
 
     // On connection
