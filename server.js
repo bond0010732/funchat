@@ -368,7 +368,7 @@ socket.on('markAsRead', async ({ roomId, userId }) => {
     const result = await ChatMessage.updateMany(
       {
         roomId,
-        receiverId: userId,      // sent to me
+        receiver: userId, // ✅ make sure field name matches your schema
         status: { $ne: 'read' },
       },
       {
@@ -377,12 +377,15 @@ socket.on('markAsRead', async ({ roomId, userId }) => {
       }
     );
 
-    io.to(roomId).emit('messages-read', { userId });
-
+    if (result.modifiedCount > 0) {
+      io.to(roomId).emit('messages-read', { userId });
+      console.log(`✅ Marked ${result.modifiedCount} messages as read by user ${userId}`);
+    }
   } catch (err) {
     console.error('❌ Error marking messages as read:', err);
   }
 });
+
 
 
     // On connection
