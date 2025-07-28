@@ -172,6 +172,31 @@ app.get('/api/messages/:roomId', async (req, res) => {
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
 
+  socket.on('register-user', (userId) => {
+  if (!userId) {
+    console.log('⚠️ register-user: No userId provided');
+    return;
+  }
+
+  // Check if user is already registered with another socket
+  const existingSocket = onlineUsers.get(userId);
+  if (existingSocket && existingSocket !== socket.id) {
+    console.log(`♻️ Updating socket for user ${userId}: ${existingSocket} → ${socket.id}`);
+  } else if (existingSocket === socket.id) {
+    console.log(`🔁 Duplicate registration attempt for user ${userId} with same socket: ${socket.id}`);
+  }
+
+  // ✅ Save userId → socket.id
+  onlineUsers.set(userId, socket.id);
+  socket.userId = userId;
+
+  console.log(`✅ Registered user ${userId} with socket ${socket.id}`);
+
+  // ✅ Notify others this user is online
+  socket.broadcast.emit('user-online', userId);
+});
+
+
   socket.on('joinRoom', ({ roomId, userId }) => {
   socket.userId = userId; // Attach to socket
   socket.join(roomId);
@@ -191,39 +216,39 @@ socket.on('leaveRoom', ({ roomId, userId }) => {
 
 
 
-socket.on('register-user', async (userId) => {
-  socket.userId = userId;
-  onlineUsers.set(userId, socket.id);
-  console.log(`${userId} is now online`);
+// socket.on('register-user', async (userId) => {
+//   socket.userId = userId;
+//   onlineUsers.set(userId, socket.id);
+//   console.log(`${userId} is now online`);
 
-  // Notify others
-  socket.broadcast.emit('user-online', userId);
+//   // Notify others
+//   socket.broadcast.emit('user-online', userId);
 
-  // Check if there are undelivered messages for this user (user is receiver)
-  const undeliveredMessages = await ChatMessage.find({
-    receiver: userId,
-    delivered: false
-  });
+//   // Check if there are undelivered messages for this user (user is receiver)
+//   const undeliveredMessages = await ChatMessage.find({
+//     receiver: userId,
+//     delivered: false
+//   });
 
-  if (undeliveredMessages.length > 0) {
-    // Send them to the user (if needed)
-    socket.emit('undelivered-messages', undeliveredMessages);
+//   if (undeliveredMessages.length > 0) {
+//     // Send them to the user (if needed)
+//     socket.emit('undelivered-messages', undeliveredMessages);
 
-    // Mark messages as delivered
-    await ChatMessage.updateMany(
-      { receiver: userId, delivered: false },
-      { $set: { delivered: true, deliveredAt: new Date() } }
-    );
+//     // Mark messages as delivered
+//     await ChatMessage.updateMany(
+//       { receiver: userId, delivered: false },
+//       { $set: { delivered: true, deliveredAt: new Date() } }
+//     );
 
-    // Send 'message-delivered' event to senders
-    undeliveredMessages.forEach((msg) => {
-      const senderSocketId = onlineUsers.get(msg.sender.toString());
-      if (senderSocketId) {
-        io.to(senderSocketId).emit('message-delivered', msg._id);
-      }
-    });
-  }
-});
+//     // Send 'message-delivered' event to senders
+//     undeliveredMessages.forEach((msg) => {
+//       const senderSocketId = onlineUsers.get(msg.sender.toString());
+//       if (senderSocketId) {
+//         io.to(senderSocketId).emit('message-delivered', msg._id);
+//       }
+//     });
+//   }
+// });
 
 
 
