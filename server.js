@@ -212,6 +212,31 @@ app.get('/api/messages/:roomId', async (req, res) => {
 });
 
 
+app.get('/api/messages/status', async (req, res) => {
+  const { roomId, userId } = req.query;
+
+  try {
+    const deliveredMessages = await ChatMessage.find({
+      roomId,
+      senderId: userId, // messages sent by the current user
+      status: 'delivered',
+    }).select('_id');
+
+    const readMessages = await ChatMessage.find({
+      roomId,
+      senderId: userId,
+      status: 'read',
+    }).select('_id');
+
+    const deliveredIds = deliveredMessages.map((msg) => msg._id.toString());
+    const readIds = readMessages.map((msg) => msg._id.toString());
+
+    res.json({ deliveredIds, readIds });
+  } catch (err) {
+    console.error('❌ Failed to fetch status updates:', err);
+    res.status(500).json({ error: 'Failed to fetch statuses' });
+  }
+});
 
 
 
