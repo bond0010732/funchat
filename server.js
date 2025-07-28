@@ -184,15 +184,16 @@ app.get('/api/messages/:roomId', async (req, res) => {
     const deliveredMessages = [];
 
     for (const msg of messages) {
+      // ✅ Only update if current user is the receiver
       if (
-        msg.receiverId &&
-        msg.receiverId.toString() === currentUserId &&
+        msg.receiverId?.toString() === currentUserId &&
         msg.status === 'sent'
       ) {
         msg.status = 'delivered';
         await msg.save();
         deliveredMessages.push(msg._id);
 
+        // ✅ Notify sender that message was delivered
         const senderSocket = onlineUsers.get(msg.senderId?.toString());
         if (senderSocket) {
           io.to(senderSocket).emit('message-delivered', {
@@ -203,12 +204,13 @@ app.get('/api/messages/:roomId', async (req, res) => {
       }
     }
 
-    res.json(messages.reverse());
+    res.json(messages.reverse()); // Send oldest → newest
   } catch (err) {
     console.error('❌ Error fetching messages:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 
