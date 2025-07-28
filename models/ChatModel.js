@@ -24,6 +24,11 @@ const chatSchema = new mongoose.Schema({
     type: Date,
     default: Date.now, // Defaults to the current date/time.
   },
+    status: {
+    type: String,
+    enum: ['sent', 'delivered', 'read'],
+    default: 'sent',
+  },
   delivered: {
     type: Boolean,
     default: false, // Initially set to false, can be updated when message is delivered.
