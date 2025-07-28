@@ -473,6 +473,46 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
 });
 
 
+
+  socket.on('markAsRead', async ({ roomId, userId }) => {
+  try {
+    const result = await ChatMessage.updateMany(
+      {
+        roomId,
+        receiverId: userId,
+        status: { $ne: 'read' },
+      },
+      {
+        status: 'read',
+        readAt: new Date(),
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      const readMessages = await ChatMessage.find({
+        roomId,
+        receiverId: userId,
+        status: 'read',
+      }).select('_id sender');
+
+      const messageIds = readMessages.map((msg) => msg._id);
+      const senderIds = [...new Set(readMessages.map((msg) => msg.sender.toString()))];
+
+      for (const senderId of senderIds) {
+        io.to(senderId).emit('message-status-updated', {
+          messageIds,
+          status: 'read',
+        });
+      }
+
+      console.log(`✅ Marked ${result.modifiedCount} messages as read`);
+    }
+  } catch (err) {
+    console.error('❌ Error marking messages as read:', err);
+  }
+});
+
+
     // On connection
 // socket.on('check-online', (userId) => {
 //   const isUserOnline = onlineUsers.includes(userId); // however you track this
