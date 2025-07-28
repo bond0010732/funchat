@@ -143,9 +143,32 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 });
 
 
+// app.get('/api/messages/:roomId', async (req, res) => {
+//   const { roomId } = req.params;
+//   const { before, limit = 50 } = req.query;
+
+//   try {
+//     const query = { roomId };
+
+//     if (before) {
+//       query.timestamp = { $lt: new Date(before) };
+//     }
+
+//     const messages = await ChatMessage.find(query)
+//       .sort({ timestamp: -1 }) // latest first
+//       .limit(parseInt(limit));
+
+//     // Send oldest → newest
+//     res.json(messages.reverse());
+//   } catch (err) {
+//     console.error('❌ Error fetching messages:', err);
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
+
 app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
-  const { before, limit = 50 } = req.query;
+  const { before, limit = 50, currentUserId } = req.query;
 
   try {
     const query = { roomId };
@@ -155,16 +178,39 @@ app.get('/api/messages/:roomId', async (req, res) => {
     }
 
     const messages = await ChatMessage.find(query)
-      .sort({ timestamp: -1 }) // latest first
+      .sort({ timestamp: -1 })
       .limit(parseInt(limit));
 
-    // Send oldest → newest
+    // ✅ Update status only if user is the receiver
+    const deliveredMessages = [];
+    for (const msg of messages) {
+      if (
+        msg.receiver.toString() === currentUserId &&
+        msg.status === 'sent'
+      ) {
+        msg.status = 'delivered';
+        await msg.save();
+        deliveredMessages.push(msg._id);
+
+        // Optionally notify sender via socket
+        const senderSocket = onlineUsers.get(msg.sender.toString());
+        if (senderSocket) {
+          io.to(senderSocket).emit('message-delivered', {
+            messageId: msg._id,
+            roomId: msg.roomId,
+          });
+        }
+      }
+    }
+
+    // Reverse for oldest → newest
     res.json(messages.reverse());
   } catch (err) {
     console.error('❌ Error fetching messages:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 
