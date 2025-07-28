@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 
 // Define the schema for the chat message
 const chatSchema = new mongoose.Schema({
-  sender: {
+  senderId: {
     type: mongoose.Schema.Types.ObjectId, // Reference to the user who sent the message
     ref: 'User', // Reference to the User model
   },
-  receiver: {
+  receiverId: {
     type: mongoose.Schema.Types.ObjectId, // Reference to the user who received the message
     ref: 'User', // Reference to the User model
   },
