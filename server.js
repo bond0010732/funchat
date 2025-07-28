@@ -216,6 +216,7 @@ app.get('/api/messages/:roomId', async (req, res) => {
 
 
 
+
 // Initialize Socket.IO
 io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
@@ -411,29 +412,65 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
 
 
 
-socket.on('markAsRead', async ({ roomId, userId }) => {
+// socket.on('markAsRead', async ({ roomId, userId }) => {
+//   try {
+//     const result = await ChatMessage.updateMany(
+//       {
+//         roomId,
+//         receiverId: userId, // ✅ fixed field name
+//         status: { $ne: 'read' },
+//       },
+//       {
+//         status: 'read',
+//         readAt: new Date(),
+//       }
+//     );
+
+//     if (result.modifiedCount > 0) {
+//       io.to(roomId).emit('messages-read', { userId });
+//       console.log(`✅ Marked ${result.modifiedCount} messages as read by user ${userId}`);
+//     }
+//   } catch (err) {
+//     console.error('❌ Error marking messages as read:', err);
+//   }
+// });
+
+
+  socket.on('mark-messages-delivered', async ({ from, to }) => {
   try {
     const result = await ChatMessage.updateMany(
       {
-        roomId,
-        receiverId: userId, // ✅ fixed field name
-        status: { $ne: 'read' },
+        senderId: from, // original sender
+        receiverId: to,
+        status: 'sent',
       },
       {
-        status: 'read',
-        readAt: new Date(),
+        status: 'delivered',
+        deliveredAt: new Date(),
       }
     );
 
     if (result.modifiedCount > 0) {
-      io.to(roomId).emit('messages-read', { userId });
-      console.log(`✅ Marked ${result.modifiedCount} messages as read by user ${userId}`);
+      const deliveredMessages = await ChatMessage.find({
+        senderId: from,
+        receiverId: to,
+        status: 'delivered',
+      }).select('_id');
+
+      const messageIds = deliveredMessages.map((msg) => msg._id);
+
+      // 🔥 Send real-time update to the sender
+      io.to(from).emit('message-status-updated', {
+        messageIds,
+        status: 'delivered',
+      });
+
+      console.log(`✅ Marked ${result.modifiedCount} messages as delivered`);
     }
   } catch (err) {
-    console.error('❌ Error marking messages as read:', err);
+    console.error('❌ Error marking messages as delivered:', err);
   }
 });
-
 
 
     // On connection
