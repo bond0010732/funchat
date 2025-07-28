@@ -216,6 +216,10 @@ app.get('/api/messages/:roomId', async (req, res) => {
 app.get('/api/messages/status', async (req, res) => {
   const { roomId, userId } = req.query;
 
+  console.log('📥 Incoming status check...');
+  console.log('➡️ roomId:', roomId);
+  console.log('➡️ userId (receiver):', userId);
+
   try {
     const messages = await ChatMessage.find({
       roomId,
@@ -223,14 +227,24 @@ app.get('/api/messages/status', async (req, res) => {
       status: 'sent',
     });
 
+    console.log(`🔍 Found ${messages.length} 'sent' messages to deliver.`);
+
+    if (messages.length === 0) {
+      console.log('📭 No new messages to mark as delivered.');
+      return res.json({ delivered: [] });
+    }
+
     const deliveredIds = [];
 
-    for (const msg of messages) {
+    // Update in parallel
+    await Promise.all(messages.map(async (msg) => {
       msg.status = 'delivered';
       msg.deliveredAt = new Date();
       await msg.save();
 
       deliveredIds.push(msg._id);
+
+      console.log(`✅ Marked message ${msg._id} as delivered.`);
 
       // Emit to sender
       const senderSocket = onlineUsers.get(msg.senderId.toString());
@@ -239,9 +253,13 @@ app.get('/api/messages/status', async (req, res) => {
           messageId: msg._id,
           roomId: msg.roomId,
         });
+        console.log(`📤 Emitted 'message-delivered' to sender ${msg.senderId}`);
+      } else {
+        console.log(`⚠️ Sender ${msg.senderId} is offline, cannot emit.`);
       }
-    }
+    }));
 
+    console.log(`🎯 Total messages delivered: ${deliveredIds.length}`);
     res.json({ delivered: deliveredIds });
 
   } catch (err) {
