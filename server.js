@@ -181,19 +181,19 @@ app.get('/api/messages/:roomId', async (req, res) => {
       .sort({ timestamp: -1 })
       .limit(parseInt(limit));
 
-    // ✅ Update status only if user is the receiver
     const deliveredMessages = [];
+
     for (const msg of messages) {
       if (
-        msg.receiver.toString() === currentUserId &&
+        msg.receiverId &&
+        msg.receiverId.toString() === currentUserId &&
         msg.status === 'sent'
       ) {
         msg.status = 'delivered';
         await msg.save();
         deliveredMessages.push(msg._id);
 
-        // Optionally notify sender via socket
-        const senderSocket = onlineUsers.get(msg.sender.toString());
+        const senderSocket = onlineUsers.get(msg.senderId?.toString());
         if (senderSocket) {
           io.to(senderSocket).emit('message-delivered', {
             messageId: msg._id,
@@ -203,13 +203,13 @@ app.get('/api/messages/:roomId', async (req, res) => {
       }
     }
 
-    // Reverse for oldest → newest
     res.json(messages.reverse());
   } catch (err) {
     console.error('❌ Error fetching messages:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 
@@ -414,7 +414,7 @@ socket.on('markAsRead', async ({ roomId, userId }) => {
     const result = await ChatMessage.updateMany(
       {
         roomId,
-        receiver: userId, // ✅ make sure field name matches your schema
+        receiverId: userId, // ✅ fixed field name
         status: { $ne: 'read' },
       },
       {
