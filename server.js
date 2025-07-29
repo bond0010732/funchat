@@ -113,7 +113,7 @@ app.get('/api/messages/status', async (req, res) => {
       roomId,
       senderId, // ✅ Corrected field name
       status: { $in: ['delivered', 'read'] },
-      updatedAt: { $gt: sinceDate }, // 🆕 only changed messages
+      timestamp: { $gt: sinceDate }, // 🆕 only changed messages
     });
 
     console.log(`✅ Found ${updatedMessages.length} message(s) with updated status for user ${userId}`);
