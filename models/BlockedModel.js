@@ -1,9 +1,14 @@
-const mongoose = require('mongoose');
 
-const blockedUserSchema = new mongoose.Schema({
-  blocker: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const blockedUserSchema = new Schema({
+     blocker: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   blocked: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   blockedAt: { type: Date, default: Date.now },
+    // Add other fields as needed
 });
 
-module.exports = mongoose.model('BlockedUser', blockedUserSchema);
+const blockedUser = mongoose.model('BlockedFriends', blockedUserSchema);
+module.exports = blockedUser;
