@@ -20,7 +20,6 @@ const chatSchema = new mongoose.Schema({
   message: {
     type: String,
   },
-  { timestamps: true },
   timestamp: {
     type: Date,
     default: Date.now, // Defaults to the current date/time.
@@ -52,7 +51,7 @@ const chatSchema = new mongoose.Schema({
   recipientPushToken: {
     type: String, // The push notification token for the recipient.
   },
-});
+},  { timestamps: true });
 
 // Define the Chat model
 const ChatModel = mongoose.model('Chat', chatSchema);
