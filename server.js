@@ -212,79 +212,79 @@ app.get('/api/messages/:roomId', async (req, res) => {
 });
 
 
-app.get('/api/messages/status', async (req, res) => {
-  const { roomId, userId } = req.query;
-
-  if (!roomId || !userId) {
-    return res.status(400).json({ error: 'roomId and userId are required' });
-  }
-
-  try {
-    // Step 1: Find all messages that were sent to this user but not yet marked as delivered or read
-    const undeliveredMessages = await ChatMessage.find({
-      roomId,
-      receiverId: userId,
-      status: 'sent', // only those still in 'sent' state
-    }).select('_id senderId');
-
-    if (undeliveredMessages.length === 0) {
-      return res.status(200).json({ updated: 0 });
-    }
-
-    const messageIds = undeliveredMessages.map((msg) => msg._id);
-    const senderIds = [...new Set(undeliveredMessages.map((msg) => msg.senderId.toString()))];
-
-    // Step 2: Update messages to "delivered"
-    const result = await ChatMessage.updateMany(
-      { _id: { $in: messageIds } },
-      { status: 'delivered' }
-    );
-
-    // Step 3: Notify sender(s) that their message was delivered
-    for (const senderId of senderIds) {
-      const socketId = onlineUsers.get(senderId);
-      if (socketId) {
-        io.to(socketId).emit('message-status-updated', {
-          messageIds,
-          status: 'delivered',
-        });
-      }
-    }
-
-    return res.status(200).json({ updated: result.modifiedCount });
-  } catch (err) {
-    console.error('❌ Error in /api/messages/status:', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-
-
 // app.get('/api/messages/status', async (req, res) => {
 //   const { roomId, userId } = req.query;
 
+//   if (!roomId || !userId) {
+//     return res.status(400).json({ error: 'roomId and userId are required' });
+//   }
+
 //   try {
-//     const deliveredMessages = await ChatMessage.find({
+//     // Step 1: Find all messages that were sent to this user but not yet marked as delivered or read
+//     const undeliveredMessages = await ChatMessage.find({
 //       roomId,
-//       senderId: userId, // messages sent by the current user
-//       status: 'sent',
-//     }).select('_id');
+//       receiverId: userId,
+//       status: 'sent', // only those still in 'sent' state
+//     }).select('_id senderId');
 
-//     const readMessages = await ChatMessage.find({
-//       roomId,
-//       senderId: userId,
-//       status: 'read',
-//     }).select('_id');
+//     if (undeliveredMessages.length === 0) {
+//       return res.status(200).json({ updated: 0 });
+//     }
 
-//     const deliveredIds = deliveredMessages.map((msg) => msg._id.toString());
-//     const readIds = readMessages.map((msg) => msg._id.toString());
+//     const messageIds = undeliveredMessages.map((msg) => msg._id);
+//     const senderIds = [...new Set(undeliveredMessages.map((msg) => msg.senderId.toString()))];
 
-//     res.json({ deliveredIds, readIds });
+//     // Step 2: Update messages to "delivered"
+//     const result = await ChatMessage.updateMany(
+//       { _id: { $in: messageIds } },
+//       { status: 'delivered' }
+//     );
+
+//     // Step 3: Notify sender(s) that their message was delivered
+//     for (const senderId of senderIds) {
+//       const socketId = onlineUsers.get(senderId);
+//       if (socketId) {
+//         io.to(socketId).emit('message-status-updated', {
+//           messageIds,
+//           status: 'delivered',
+//         });
+//       }
+//     }
+
+//     return res.status(200).json({ updated: result.modifiedCount });
 //   } catch (err) {
-//     console.error('❌ Failed to fetch status updates:', err);
-//     res.status(500).json({ error: 'Failed to fetch statuses' });
+//     console.error('❌ Error in /api/messages/status:', err);
+//     return res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
+
+
+
+app.get('/api/messages/status', async (req, res) => {
+  const { roomId, userId } = req.query;
+
+  try {
+    const deliveredMessages = await ChatMessage.find({
+      roomId,
+      senderId: userId, // messages sent by the current user
+      status: 'sent',
+    }).select('_id');
+
+    const readMessages = await ChatMessage.find({
+      roomId,
+      senderId: userId,
+      status: 'read',
+    }).select('_id');
+
+    const deliveredIds = deliveredMessages.map((msg) => msg._id.toString());
+    const readIds = readMessages.map((msg) => msg._id.toString());
+
+    res.json({ deliveredIds, readIds });
+  } catch (err) {
+    console.error('❌ Failed to fetch status updates:', err);
+    res.status(500).json({ error: 'Failed to fetch statuses' });
+  }
+});
 
 
 
