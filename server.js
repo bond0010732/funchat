@@ -127,27 +127,29 @@ app.get('/api/messages/status', async (req, res) => {
 
 // POST /api/block
 app.post('/block', async (req, res) => {
-  const { blockerId, blockedId } = req.body;
+  console.log('📥 Incoming block request:', req.body);
 
-  console.log(`🔒 Block request: blockerId=${blockerId}, blockedId=${blockedId}`);
+  const { blockerId, blockedId } = req.body || {};
+
+  if (!blockerId || !blockedId) {
+    console.log('❌ Missing blockerId or blockedId');
+    return res.status(400).json({ error: 'Missing blockerId or blockedId' });
+  }
 
   try {
     const exists = await blockedUser.findOne({ blocker: blockerId, blocked: blockedId });
-
     if (exists) {
-      console.log(`⚠️ User ${blockedId} is already blocked by ${blockerId}`);
       return res.status(400).json({ error: 'Already blocked' });
     }
 
     await blockedUser.create({ blocker: blockerId, blocked: blockedId });
-    console.log(`✅ User ${blockedId} blocked by ${blockerId}`);
-
     res.json({ message: 'User blocked successfully' });
   } catch (err) {
-    console.error(`❌ Error blocking user ${blockedId} by ${blockerId}:`, err);
+    console.error('❌ Block failed:', err);
     res.status(500).json({ error: 'Failed to block user' });
   }
 });
+
 
 
 // POST /api/unblock
