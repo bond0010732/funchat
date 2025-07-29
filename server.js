@@ -212,61 +212,52 @@ app.get('/api/messages/:roomId', async (req, res) => {
 });
 
 
-
 app.get('/api/messages/status', async (req, res) => {
   const { roomId, userId } = req.query;
 
-  console.log('📥 Incoming status check...');
-  console.log('➡️ roomId:', roomId);
-  console.log('➡️ userId (receiver):', userId);
+  if (!roomId || !userId) {
+    return res.status(400).json({ error: 'roomId and userId are required' });
+  }
 
   try {
-    const messages = await ChatMessage.find({
+    // Step 1: Find all messages that were sent to this user but not yet marked as delivered or read
+    const undeliveredMessages = await ChatMessage.find({
       roomId,
       receiverId: userId,
-      status: 'sent',
-    });
+      status: 'sent', // only those still in 'sent' state
+    }).select('_id senderId');
 
-    console.log(`🔍 Found ${messages.length} 'sent' messages to deliver.`);
-
-    if (messages.length === 0) {
-      console.log('📭 No new messages to mark as delivered.');
-      return res.json({ delivered: [] });
+    if (undeliveredMessages.length === 0) {
+      return res.status(200).json({ updated: 0 });
     }
 
-    const deliveredIds = [];
+    const messageIds = undeliveredMessages.map((msg) => msg._id);
+    const senderIds = [...new Set(undeliveredMessages.map((msg) => msg.senderId.toString()))];
 
-    // Update in parallel
-    await Promise.all(messages.map(async (msg) => {
-      msg.status = 'delivered';
-      msg.deliveredAt = new Date();
-      await msg.save();
+    // Step 2: Update messages to "delivered"
+    const result = await ChatMessage.updateMany(
+      { _id: { $in: messageIds } },
+      { status: 'delivered' }
+    );
 
-      deliveredIds.push(msg._id);
-
-      console.log(`✅ Marked message ${msg._id} as delivered.`);
-
-      // Emit to sender
-      const senderSocket = onlineUsers.get(msg.senderId.toString());
-      if (senderSocket) {
-        io.to(senderSocket).emit('message-delivered', {
-          messageId: msg._id,
-          roomId: msg.roomId,
+    // Step 3: Notify sender(s) that their message was delivered
+    for (const senderId of senderIds) {
+      const socketId = onlineUsers.get(senderId);
+      if (socketId) {
+        io.to(socketId).emit('message-status-updated', {
+          messageIds,
+          status: 'delivered',
         });
-        console.log(`📤 Emitted 'message-delivered' to sender ${msg.senderId}`);
-      } else {
-        console.log(`⚠️ Sender ${msg.senderId} is offline, cannot emit.`);
       }
-    }));
+    }
 
-    console.log(`🎯 Total messages delivered: ${deliveredIds.length}`);
-    res.json({ delivered: deliveredIds });
-
+    return res.status(200).json({ updated: result.modifiedCount });
   } catch (err) {
-    console.error('❌ Error updating message status:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Error in /api/messages/status:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // app.get('/api/messages/status', async (req, res) => {
@@ -431,36 +422,6 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
   }
 });
 
-
-//     socket.on('sendMessage', async ({ roomId, msg }) => {
-//   try {
-//     if (!msg) {
-//       console.error('❌ Invalid message payload: msg is missing');
-//       return;
-//     }
-
-//     const savedMsg = await ChatMessage.create({
-//       text: msg.text || '',
-//       imageUrl: msg.imageUrl || '',
-//       gifUrl: msg.gifUrl,
-//       videoUrl: msg.videoUrl,
-//       senderId: msg.senderId,
-//       receiverId: msg.receiverId,
-//       roomId,
-//       status: 'sent',
-//     });
-
-//     io.to(roomId).emit('newMessage', savedMsg);
-
-//     const receiverSocketId = onlineUsers.get(msg.receiverId);
-//     if (receiverSocketId) {
-//       io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
-//       await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
-//     }
-//   } catch (err) {
-//     console.error('❌ Error saving message:', err.message);
-//   }
-// });
 
 
   
