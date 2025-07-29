@@ -97,7 +97,7 @@ const onlineUsers = new Map(); // userId -> socketId
 
 
 app.get('/api/messages/status', async (req, res) => {
-  const { roomId, userId } = req.query;
+  const { roomId, userId, since } = req.query;
 
   if (!roomId || !userId) {
     return res.status(400).json({ error: 'roomId and userId are required' });
