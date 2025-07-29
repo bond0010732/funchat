@@ -94,35 +94,34 @@ const onlineUsers = new Map(); // userId -> socketId
 //     res.status(500).json({ error: 'Server error' });
 //   }
 // });
+  const messages = await ChatMessage.find({ roomId });
+messages.forEach(msg => {
+  console.log({
+    id: msg._id,
+    sender: msg.sender.toString(),
+    receiver: msg.receiver.toString(),
+    status: msg.status,
+  });
+});
 
 app.get('/api/messages/status', async (req, res) => {
   const { roomId, userId } = req.query;
 
-  console.log('🔍 Polling message statuses for:', { roomId, userId });
-
   if (!roomId || !userId) {
-    console.warn('⚠️ Missing roomId or userId');
     return res.status(400).json({ error: 'roomId and userId are required' });
   }
 
   try {
-    // Find messages SENT by this user that now have updated status
+    const senderId = new mongoose.Types.ObjectId(userId);
+    console.log(`🔍 Polling message statuses for sender ${senderId} in room ${roomId}`);
+
     const updatedMessages = await ChatMessage.find({
       roomId,
-      sender: userId,
+      sender: senderId,
       status: { $in: ['delivered', 'read'] },
     });
 
     console.log(`✅ Found ${updatedMessages.length} message(s) with updated status for user ${userId}`);
-    if (updatedMessages.length > 0) {
-      console.table(updatedMessages.map(msg => ({
-        _id: msg._id.toString(),
-        status: msg.status,
-        to: msg.receiver.toString(),
-        sentAt: msg.createdAt,
-      })));
-    }
-
     res.json(updatedMessages);
   } catch (err) {
     console.error('❌ Polling status error:', err.message);
