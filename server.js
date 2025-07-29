@@ -433,37 +433,18 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
 });
 
 
+socket.on('message-delivered', async ({ messageId }) => {
+  await ChatMessage.findByIdAndUpdate(messageId, { status: 'delivered', deliveredAt: Date.now() });
+});
 
+  // Server updates all relevant messages
+socket.on('mark-as-read', async ({ roomId, userId }) => {
+  await ChatMessage.updateMany(
+    { roomId, receiverId: userId, status: { $ne: 'read' } },
+    { status: 'read', seenAt: Date.now() }
+  );
+});
   
-//     socket.on('sendMessage', async ({ roomId, msg }) => {
-//   try {
-//     const savedMsg = await ChatMessage.create({
-//       text: msg.text,
-//       imageUrl:  msg.imageUrl,
-//       senderId: msg.senderId,
-//       receiverId: msg.receiverId,
-//       roomId,
-//       status: 'sent'
-//     });
-
-//     // Emit to everyone in room (both users should have joined)
-//     io.to(roomId).emit('newMessage', savedMsg);
-
-//     // If receiver is online (optional)
-//     const receiverSocketId = onlineUsers.get(msg.receiverId);
-//     if (receiverSocketId) {
-//       io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
-
-//       await ChatMessage.findByIdAndUpdate(savedMsg._id, {
-//         status: 'delivered'
-//       });
-//     }
-
-//   } catch (err) {
-//     console.error('❌ Error saving message:', err.message);
-//   }
-// });
-
 
 
 // socket.on('markAsRead', async ({ roomId, userId }) => {
@@ -490,89 +471,89 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
 // });
 
 
-  socket.on('mark-messages-delivered', async ({ from, to }) => {
-  try {
-    const result = await ChatMessage.updateMany(
-      {
-        senderId: from, // original sender
-        receiverId: to,
-        status: 'sent',
-      },
-      {
-        status: 'delivered',
-        deliveredAt: new Date(),
-      }
-    );
+//   socket.on('mark-messages-delivered', async ({ from, to }) => {
+//   try {
+//     const result = await ChatMessage.updateMany(
+//       {
+//         senderId: from, // original sender
+//         receiverId: to,
+//         status: 'sent',
+//       },
+//       {
+//         status: 'delivered',
+//         deliveredAt: new Date(),
+//       }
+//     );
 
-    if (result.modifiedCount > 0) {
-      const deliveredMessages = await ChatMessage.find({
-        senderId: from,
-        receiverId: to,
-        status: 'delivered',
-      }).select('_id');
+//     if (result.modifiedCount > 0) {
+//       const deliveredMessages = await ChatMessage.find({
+//         senderId: from,
+//         receiverId: to,
+//         status: 'delivered',
+//       }).select('_id');
 
-      const messageIds = deliveredMessages.map((msg) => msg._id);
+//       const messageIds = deliveredMessages.map((msg) => msg._id);
 
-      // 🔥 Send real-time update to the sender
-      io.to(from).emit('message-status-updated', {
-        messageIds,
-        status: 'delivered',
-      });
+//       // 🔥 Send real-time update to the sender
+//       io.to(from).emit('message-status-updated', {
+//         messageIds,
+//         status: 'delivered',
+//       });
 
-      console.log(`✅ Marked ${result.modifiedCount} messages as delivered`);
-    }
-  } catch (err) {
-    console.error('❌ Error marking messages as delivered:', err);
-  }
-});
+//       console.log(`✅ Marked ${result.modifiedCount} messages as delivered`);
+//     }
+//   } catch (err) {
+//     console.error('❌ Error marking messages as delivered:', err);
+//   }
+// });
 
 
 
-socket.on('markAsRead', async ({ roomId, userId }) => {
-  try {
-    console.log(`📩 markAsRead triggered for room: ${roomId}, user: ${userId}`);
+// socket.on('markAsRead', async ({ roomId, userId }) => {
+//   try {
+//     console.log(`📩 markAsRead triggered for room: ${roomId}, user: ${userId}`);
 
-    // ✅ Only mark messages that have been delivered (not just sent)
-    const unreadMessages = await ChatMessage.find({
-      roomId,
-      receiverId: userId,
-      status: 'delivered', // ✅ Only mark delivered messages as read
-    }).select('_id senderId');
+//     // ✅ Only mark messages that have been delivered (not just sent)
+//     const unreadMessages = await ChatMessage.find({
+//       roomId,
+//       receiverId: userId,
+//       status: 'delivered', // ✅ Only mark delivered messages as read
+//     }).select('_id senderId');
 
-    if (unreadMessages.length === 0) {
-      console.log('📭 No delivered messages to mark as read.');
-      return;
-    }
+//     if (unreadMessages.length === 0) {
+//       console.log('📭 No delivered messages to mark as read.');
+//       return;
+//     }
 
-    const messageIds = unreadMessages.map((msg) => msg._id);
-    const senderIds = [...new Set(unreadMessages.map((msg) => msg.senderId.toString()))];
+//     const messageIds = unreadMessages.map((msg) => msg._id);
+//     const senderIds = [...new Set(unreadMessages.map((msg) => msg.senderId.toString()))];
 
-    console.log(`🧾 Marking ${messageIds.length} messages as read.`);
+//     console.log(`🧾 Marking ${messageIds.length} messages as read.`);
 
-    // ✅ Step 2: Mark them as read
-    const result = await ChatMessage.updateMany(
-      { _id: { $in: messageIds } },
-      {
-        status: 'read',
-        readAt: new Date(),
-      }
-    );
+//     // ✅ Step 2: Mark them as read
+//     const result = await ChatMessage.updateMany(
+//       { _id: { $in: messageIds } },
+//       {
+//         status: 'read',
+//         readAt: new Date(),
+//       }
+//     );
 
-    // ✅ Step 3: Notify each sender
-    for (const senderId of senderIds) {
-      io.to(senderId).emit('message-status-updated', {
-        messageIds,
-        status: 'read',
-      });
-      console.log(`📤 Emitted 'message-status-updated' to sender: ${senderId}`);
-    }
+//     // ✅ Step 3: Notify each sender
+//     for (const senderId of senderIds) {
+//       io.to(senderId).emit('message-status-updated', {
+//         messageIds,
+//         status: 'read',
+//       });
+//       console.log(`📤 Emitted 'message-status-updated' to sender: ${senderId}`);
+//     }
 
-    console.log(`✅ Marked ${result.modifiedCount} messages as read`);
+//     console.log(`✅ Marked ${result.modifiedCount} messages as read`);
 
-  } catch (err) {
-    console.error('❌ Error marking messages as read:', err);
-  }
-});
+//   } catch (err) {
+//     console.error('❌ Error marking messages as read:', err);
+//   }
+// });
 
 
 
