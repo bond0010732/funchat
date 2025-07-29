@@ -94,15 +94,7 @@ const onlineUsers = new Map(); // userId -> socketId
 //     res.status(500).json({ error: 'Server error' });
 //   }
 // });
-  const messages = await ChatMessage.find({ roomId });
-messages.forEach(msg => {
-  console.log({
-    id: msg._id,
-    sender: msg.sender.toString(),
-    receiver: msg.receiver.toString(),
-    status: msg.status,
-  });
-});
+
 
 app.get('/api/messages/status', async (req, res) => {
   const { roomId, userId } = req.query;
