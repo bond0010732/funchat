@@ -268,16 +268,23 @@ app.get('/api/messages/status', async (req, res) => {
   }
 
   try {
-    // e.g., find messages delivered to this user but not yet marked
-    const messagesToUpdate = await ChatMessage.find({
+    console.log("🔍 Polling message statuses for:", { roomId, userId });
+
+    const messages = await ChatMessage.find({
       roomId,
       receiver: userId,
-      status: { $ne: 'read' },
+      status: 'sent', // or { $in: ['sent', 'delivered'] }
     });
 
-    return res.json(messagesToUpdate); // <== should be non-empty
+    console.log("✅ Found messages to update:", messages.map(m => ({
+      id: m._id,
+      status: m.status,
+      receiver: m.receiver.toString()
+    })));
+
+    return res.json(messages);
   } catch (err) {
-    console.error(err);
+    console.error("❌ Status fetch failed:", err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
