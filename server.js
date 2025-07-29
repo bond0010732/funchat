@@ -105,11 +105,11 @@ app.get('/api/messages/status', async (req, res) => {
 
   try {
     const senderId = new mongoose.Types.ObjectId(userId);
-    console.log(`🔍 Polling message statuses for sender ${senderId} in room ${roomId}`);
+    console.log(`🔍 Polling message statuses for senderId ${senderId} in room ${roomId}`);
 
     const updatedMessages = await ChatMessage.find({
       roomId,
-      sender: senderId,
+      senderId, // ✅ Corrected field name
       status: { $in: ['delivered', 'read'] },
     });
 
@@ -120,6 +120,7 @@ app.get('/api/messages/status', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
