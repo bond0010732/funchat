@@ -20,6 +20,7 @@ const chatSchema = new mongoose.Schema({
   message: {
     type: String,
   },
+  { timestamps: true },
   timestamp: {
     type: Date,
     default: Date.now, // Defaults to the current date/time.
