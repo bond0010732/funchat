@@ -410,8 +410,9 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
 
     if (receiverSocketId) {
       // ✅ Receiver is online -> deliver and update status
-      io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
-      await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
+      //io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
+       io.to(receiverSocketId).emit('message-received', savedMsg); // optional event
+      // await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
     } else {
       // ❌ Receiver is offline -> send push notification
       const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
