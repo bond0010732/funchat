@@ -263,36 +263,36 @@ app.get('/api/messages/:roomId', async (req, res) => {
 app.get('/api/messages/status', async (req, res) => {
   const { roomId, userId } = req.query;
 
+  if (!roomId || !userId) {
+    return res.status(400).json({ error: 'roomId and userId are required' });
+  }
+
   try {
-    const messages = await ChatMessage.find({
+    // Fetch messages delivered to the user (already updated via socket)
+    const deliveredMessages = await ChatMessage.find({
       roomId,
       receiverId: userId,
-      status: 'sent',
+      delivered: true,
+    }).select('_id');
+
+    // Fetch messages seen by the user (already updated via socket)
+    const readMessages = await ChatMessage.find({
+      roomId,
+      receiverId: userId,
+      seen: true,
+    }).select('_id');
+
+    // Map only the IDs
+    const deliveredIds = deliveredMessages.map((msg) => msg._id.toString());
+    const readIds = readMessages.map((msg) => msg._id.toString());
+
+    return res.json({
+      delivered: deliveredIds,
+      read: readIds,
     });
-
-    const deliveredIds = [];
-
-    for (const msg of messages) {
-      msg.status = 'delivered';
-      msg.deliveredAt = new Date();
-      await msg.save();
-
-      deliveredIds.push(msg._id);
-
-      // Emit to sender
-      const senderSocket = onlineUsers.get(msg.senderId.toString());
-      if (senderSocket) {
-        io.to(senderSocket).emit('message-delivered', {
-          messageId: msg._id,
-          roomId: msg.roomId,
-        });
-      }
-    }
-
-    res.json({ delivered: deliveredIds });
   } catch (err) {
-    console.error('❌ Error updating message status:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Error fetching message statuses:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
