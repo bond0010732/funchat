@@ -12,6 +12,7 @@ const reportUser = require('./models/ReportModel')
 require("dotenv").config();
 
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 const io = socketIo(server);
 const expo = new Expo();
