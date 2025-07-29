@@ -140,7 +140,7 @@ app.post('/block', async (req, res) => {
 });
 
 // POST /api/unblock
-router.post('/unblock', async (req, res) => {
+app.post('/unblock', async (req, res) => {
   const { blockerId, blockedId } = req.body;
 
   try {
@@ -157,7 +157,7 @@ router.post('/unblock', async (req, res) => {
 });
 
 // GET /api/block/status?blockerId=abc&blockedId=xyz
-router.get('/status', async (req, res) => {
+app.get('/status', async (req, res) => {
   const { blockerId, blockedId } = req.query;
 
   if (!blockerId || !blockedId) return res.status(400).json({ error: 'Missing params' });
@@ -169,7 +169,7 @@ router.get('/status', async (req, res) => {
 
 
 // POST /api/report
-router.post('/report', async (req, res) => {
+app.post('/report', async (req, res) => {
   const { reporterId, reportedId, reason } = req.body;
 
   try {
@@ -181,7 +181,7 @@ router.post('/report', async (req, res) => {
 });
 
 // GET /api/blocked?userId=xxx&otherUserId=yyy
-router.get('/blocked', async (req, res) => {
+app.get('/blocked', async (req, res) => {
   const { userId, otherUserId } = req.query;
 
   const isBlocked = await blockedUser.findOne({
