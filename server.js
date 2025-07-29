@@ -98,21 +98,34 @@ const onlineUsers = new Map(); // userId -> socketId
 app.get('/api/messages/status', async (req, res) => {
   const { roomId, userId } = req.query;
 
+  console.log('🔍 Polling message statuses for:', { roomId, userId });
+
   if (!roomId || !userId) {
+    console.warn('⚠️ Missing roomId or userId');
     return res.status(400).json({ error: 'roomId and userId are required' });
   }
 
   try {
-    // Find messages SENT by this user that now have updated status (e.g., read or delivered)
+    // Find messages SENT by this user that now have updated status
     const updatedMessages = await ChatMessage.find({
       roomId,
       sender: userId,
-      status: { $in: ['delivered', 'read'] }, // or { $ne: 'sent' }
+      status: { $in: ['delivered', 'read'] },
     });
+
+    console.log(`✅ Found ${updatedMessages.length} message(s) with updated status for user ${userId}`);
+    if (updatedMessages.length > 0) {
+      console.table(updatedMessages.map(msg => ({
+        _id: msg._id.toString(),
+        status: msg.status,
+        to: msg.receiver.toString(),
+        sentAt: msg.createdAt,
+      })));
+    }
 
     res.json(updatedMessages);
   } catch (err) {
-    console.error('Polling status error:', err.message);
+    console.error('❌ Polling status error:', err.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
