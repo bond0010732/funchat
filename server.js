@@ -156,6 +156,19 @@ app.post('/unblock', async (req, res) => {
   }
 });
 
+
+// GET /api/block/list?userId=abc
+app.get('/list', async (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+
+  const blocks = await blockedUser.find({ blocker: userId });
+  const blockedUserIds = blocks.map(b => b.blocked.toString());
+
+  res.json({ blockedUserIds });
+});
+
+
 // GET /api/block/status?blockerId=abc&blockedId=xyz
 app.get('/status', async (req, res) => {
   const { blockerId, blockedId } = req.query;
