@@ -97,7 +97,7 @@ const onlineUsers = new Map(); // userId -> socketId
 
 
 app.get('/api/messages/status', async (req, res) => {
-  const { roomId, userId, since } = req.query;
+  const { roomId, userId } = req.query;
 
   if (!roomId || !userId) {
     return res.status(400).json({ error: 'roomId and userId are required' });
@@ -105,15 +105,12 @@ app.get('/api/messages/status', async (req, res) => {
 
   try {
     const senderId = new mongoose.Types.ObjectId(userId);
-       const sinceDate = since ? new Date(since) : new Date(Date.now() - 60 * 1000); // default to last 1 min
-
     console.log(`🔍 Polling message statuses for senderId ${senderId} in room ${roomId}`);
 
     const updatedMessages = await ChatMessage.find({
       roomId,
       senderId, // ✅ Corrected field name
       status: { $in: ['delivered', 'read'] },
-      updatedAt: { $gt: sinceDate }, // 🆕 only changed messages
     });
 
     console.log(`✅ Found ${updatedMessages.length} message(s) with updated status for user ${userId}`);
@@ -123,6 +120,7 @@ app.get('/api/messages/status', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
