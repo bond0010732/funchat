@@ -103,26 +103,20 @@ app.get('/api/messages/status', async (req, res) => {
   }
 
   try {
-    console.log("🔍 Polling message statuses for:", { roomId, userId });
-
-    const messages = await ChatMessage.find({
+    // Find messages SENT by this user that now have updated status (e.g., read or delivered)
+    const updatedMessages = await ChatMessage.find({
       roomId,
-      receiver: userId,
-      status: 'sent', // or { $in: ['sent', 'delivered'] }
+      sender: userId,
+      status: { $in: ['delivered', 'read'] }, // or { $ne: 'sent' }
     });
 
-    console.log("✅ Found messages to update:", messages.map(m => ({
-      id: m._id,
-      status: m.status,
-      receiver: m.receiver.toString()
-    })));
-
-    return res.json(messages);
+    res.json(updatedMessages);
   } catch (err) {
-    console.error("❌ Status fetch failed:", err);
-    return res.status(500).json({ error: 'Server error' });
+    console.error('Polling status error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 app.post('/api/upload/video', videoUpload.single('video'), (req, res) => {
