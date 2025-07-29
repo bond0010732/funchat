@@ -268,33 +268,20 @@ app.get('/api/messages/status', async (req, res) => {
   }
 
   try {
-    // Fetch messages delivered to the user (already updated via socket)
-    const deliveredMessages = await ChatMessage.find({
+    // e.g., find messages delivered to this user but not yet marked
+    const messagesToUpdate = await ChatMessage.find({
       roomId,
-      receiverId: userId,
-      delivered: true,
-    }).select('_id');
-
-    // Fetch messages seen by the user (already updated via socket)
-    const readMessages = await ChatMessage.find({
-      roomId,
-      receiverId: userId,
-      seen: true,
-    }).select('_id');
-
-    // Map only the IDs
-    const deliveredIds = deliveredMessages.map((msg) => msg._id.toString());
-    const readIds = readMessages.map((msg) => msg._id.toString());
-
-    return res.json({
-      delivered: deliveredIds,
-      read: readIds,
+      receiver: userId,
+      status: { $ne: 'read' },
     });
+
+    return res.json(messagesToUpdate); // <== should be non-empty
   } catch (err) {
-    console.error('❌ Error fetching message statuses:', err);
+    console.error(err);
     return res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 
