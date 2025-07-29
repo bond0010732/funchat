@@ -7,6 +7,8 @@ const ChatModel = require("./models/ChatModel");
 const OdinCircledbModel = require("./models/odincircledb");
 const Device = require('./models/Device');
 const ChatsFriends = require('./models/ChatsFriends');
+const blockedUser = require('./models/BlockedModel')
+const reportUser = require('./models/ReportModel')
 require("dotenv").config();
 
 const app = express();
@@ -122,6 +124,45 @@ app.get('/api/messages/status', async (req, res) => {
 });
 
 
+// POST /api/block
+app.post('/block', async (req, res) => {
+  const { blockerId, blockedId } = req.body;
+
+  try {
+    const exists = await blockedUser.findOne({ blocker: blockerId, blocked: blockedId });
+    if (exists) return res.status(400).json({ error: 'Already blocked' });
+
+    await blockedUser.create({ blocker: blockerId, blocked: blockedId });
+    res.json({ message: 'User blocked successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
+
+// POST /api/report
+router.post('/report', async (req, res) => {
+  const { reporterId, reportedId, reason } = req.body;
+
+  try {
+    await reportUser.create({ reporter: reporterId, reported: reportedId, reason });
+    res.json({ message: 'User reported successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to report user' });
+  }
+});
+
+// GET /api/blocked?userId=xxx&otherUserId=yyy
+router.get('/blocked', async (req, res) => {
+  const { userId, otherUserId } = req.query;
+
+  const isBlocked = await blockedUser.findOne({
+    blocker: userId,
+    blocked: otherUserId,
+  });
+
+  res.json({ isBlocked: !!isBlocked });
+});
 
 
 
