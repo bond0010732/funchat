@@ -139,6 +139,34 @@ app.post('/block', async (req, res) => {
   }
 });
 
+// POST /api/unblock
+router.post('/unblock', async (req, res) => {
+  const { blockerId, blockedId } = req.body;
+
+  try {
+    const result = await blockedUser.deleteOne({ blocker: blockerId, blocked: blockedId });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'User is not currently blocked' });
+    }
+
+    res.json({ message: 'User unblocked successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// GET /api/block/status?blockerId=abc&blockedId=xyz
+router.get('/status', async (req, res) => {
+  const { blockerId, blockedId } = req.query;
+
+  if (!blockerId || !blockedId) return res.status(400).json({ error: 'Missing params' });
+
+  const isBlocked = await blockedUser.findOne({ blocker: blockerId, blocked: blockedId });
+  res.json({ blocked: !!isBlocked });
+});
+
+
 
 // POST /api/report
 router.post('/report', async (req, res) => {
