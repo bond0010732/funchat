@@ -95,6 +95,36 @@ const onlineUsers = new Map(); // userId -> socketId
 //   }
 // });
 
+app.get('/api/messages/status', async (req, res) => {
+  const { roomId, userId } = req.query;
+
+  if (!roomId || !userId) {
+    return res.status(400).json({ error: 'roomId and userId are required' });
+  }
+
+  try {
+    console.log("🔍 Polling message statuses for:", { roomId, userId });
+
+    const messages = await ChatMessage.find({
+      roomId,
+      receiver: userId,
+      status: 'sent', // or { $in: ['sent', 'delivered'] }
+    });
+
+    console.log("✅ Found messages to update:", messages.map(m => ({
+      id: m._id,
+      status: m.status,
+      receiver: m.receiver.toString()
+    })));
+
+    return res.json(messages);
+  } catch (err) {
+    console.error("❌ Status fetch failed:", err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 app.post('/api/upload/video', videoUpload.single('video'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No video uploaded' });
 
@@ -260,34 +290,6 @@ app.get('/api/messages/:roomId', async (req, res) => {
 
 
 
-app.get('/api/messages/status', async (req, res) => {
-  const { roomId, userId } = req.query;
-
-  if (!roomId || !userId) {
-    return res.status(400).json({ error: 'roomId and userId are required' });
-  }
-
-  try {
-    console.log("🔍 Polling message statuses for:", { roomId, userId });
-
-    const messages = await ChatMessage.find({
-      roomId,
-      receiver: userId,
-      status: 'sent', // or { $in: ['sent', 'delivered'] }
-    });
-
-    console.log("✅ Found messages to update:", messages.map(m => ({
-      id: m._id,
-      status: m.status,
-      receiver: m.receiver.toString()
-    })));
-
-    return res.json(messages);
-  } catch (err) {
-    console.error("❌ Status fetch failed:", err);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
 
 
 
