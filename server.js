@@ -171,7 +171,7 @@ app.post('/unblock', async (req, res) => {
 
 
 // GET /api/block/list?userId=abc
-app.get('/list', async (req, res) => {
+app.get('/block/list', async (req, res) => {
   const { userId } = req.query;
   if (!userId) return res.status(400).json({ error: 'Missing userId' });
 
