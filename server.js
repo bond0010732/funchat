@@ -183,7 +183,7 @@ app.get('/block/list', async (req, res) => {
 
 
 // GET /api/block/status?blockerId=abc&blockedId=xyz
-app.get('/status', async (req, res) => {
+app.get('/block/status', async (req, res) => {
   const { blockerId, blockedId } = req.query;
 
   if (!blockerId || !blockedId) return res.status(400).json({ error: 'Missing params' });
