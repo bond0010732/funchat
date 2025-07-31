@@ -188,8 +188,14 @@ app.get('/block/status', async (req, res) => {
 
   if (!blockerId || !blockedId) return res.status(400).json({ error: 'Missing params' });
 
-  const isBlocked = await blockedUser.findOne({ blocker: blockerId, blocked: blockedId });
-  res.json({ blocked: !!isBlocked });
+const block = await blockedUser.findOne({
+  $or: [
+    { blocker: blockerId, blocked: blockedId },
+    { blocker: blockedId, blocked: blockerId }
+  ]
+});
+res.json({ isBlocked: !!block });
+
 });
 
 
