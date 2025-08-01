@@ -200,30 +200,29 @@ app.get('/block/list', async (req, res) => {
 
 // Assuming you're using Mongoose
 // Assuming you're using Mongoose
-app.get('/block/status', async (req, res) => {
-  const { blockerId, blockedId } = req.query;
+// GET /block/eitherBlocked?userA=xxx&userB=yyy
+app.get('/block/eitherBlocked', async (req, res) => {
+  const { userA, userB } = req.query;
 
-  if (!blockerId || !blockedId) {
-    console.log('❌ Missing blockerId or blockedId:', { blockerId, blockedId });
-    return res.status(400).json({ message: 'Missing blockerId or blockedId' });
+  if (!userA || !userB) {
+    return res.status(400).json({ message: 'Missing user IDs' });
   }
 
   try {
-    console.log('🔍 Checking block status:', { blockerId, blockedId });
-
-    const isBlocked = await blockedUser.exists({
-      blockerId,
-      blockedId,
+    const isEitherBlocked = await BlockModel.exists({
+      $or: [
+        { blocker: userA, blocked: userB },
+        { blocker: userB, blocked: userA },
+      ],
     });
 
-    console.log(`✅ Block status result: ${isBlocked ? 'Blocked' : 'Not Blocked'}`);
-
-    return res.json({ blocked: !!isBlocked }); // ensures true/false
+    return res.json({ eitherBlocked: !!isEitherBlocked });
   } catch (err) {
-    console.error('❗ Error checking block status:', err);
+    console.error('Error checking block status:', err);
     return res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 
 
