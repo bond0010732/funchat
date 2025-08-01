@@ -183,21 +183,36 @@ app.get('/block/list', async (req, res) => {
 
 
 // GET /api/block/status?blockerId=abc&blockedId=xyz
+// app.get('/block/status', async (req, res) => {
+//   const { blockerId, blockedId } = req.query;
+
+//   if (!blockerId || !blockedId) return res.status(400).json({ error: 'Missing params' });
+
+// const block = await blockedUser.findOne({
+//   $or: [
+//     { blocker: blockerId, blocked: blockedId },
+//     { blocker: blockedId, blocked: blockerId }
+//   ]
+// });
+// res.json({ isBlocked: !!block });
+
+// });
+
 app.get('/block/status', async (req, res) => {
   const { blockerId, blockedId } = req.query;
 
-  if (!blockerId || !blockedId) return res.status(400).json({ error: 'Missing params' });
+  if (!blockerId || !blockedId) {
+    return res.status(400).json({ message: 'Missing blockerId or blockedId' });
+  }
 
-const block = await blockedUser.findOne({
-  $or: [
-    { blocker: blockerId, blocked: blockedId },
-    { blocker: blockedId, blocked: blockerId }
-  ]
+  try {
+    const isBlocked = await blockModel.exists({ blockerId, blockedId });
+    res.json({ blocked: Boolean(isBlocked) }); // always true/false
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
-res.json({ isBlocked: !!block });
-
-});
-
 
 
 // POST /api/report
