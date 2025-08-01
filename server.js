@@ -198,21 +198,33 @@ app.get('/block/list', async (req, res) => {
 
 // });
 
+// Assuming you're using Mongoose
+// Assuming you're using Mongoose
 app.get('/block/status', async (req, res) => {
   const { blockerId, blockedId } = req.query;
 
   if (!blockerId || !blockedId) {
+    console.log('❌ Missing blockerId or blockedId:', { blockerId, blockedId });
     return res.status(400).json({ message: 'Missing blockerId or blockedId' });
   }
 
   try {
-    const isBlocked = await blockModel.exists({ blockerId, blockedId });
-    res.json({ blocked: Boolean(isBlocked) }); // always true/false
+    console.log('🔍 Checking block status:', { blockerId, blockedId });
+
+    const isBlocked = await blockModel.exists({
+      blockerId,
+      blockedId,
+    });
+
+    console.log(`✅ Block status result: ${isBlocked ? 'Blocked' : 'Not Blocked'}`);
+
+    return res.json({ blocked: !!isBlocked }); // ensures true/false
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❗ Error checking block status:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 
 // POST /api/report
