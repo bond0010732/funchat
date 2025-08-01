@@ -209,7 +209,7 @@ app.get('/block/eitherBlocked', async (req, res) => {
   }
 
   try {
-    const isEitherBlocked = await BlockModel.exists({
+    const isEitherBlocked = await blockedUser.exists({
       $or: [
         { blocker: userA, blocked: userB },
         { blocker: userB, blocked: userA },
