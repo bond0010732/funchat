@@ -211,7 +211,7 @@ app.get('/block/status', async (req, res) => {
   try {
     console.log('🔍 Checking block status:', { blockerId, blockedId });
 
-    const isBlocked = await blockModel.exists({
+    const isBlocked = await blockedUser.exists({
       blockerId,
       blockedId,
     });
