@@ -86,17 +86,51 @@ const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 
 const onlineUsers = new Map(); // userId -> socketId
 
-// app.get('/api/messages/:roomId', async (req, res) => {
-//   const { roomId } = req.params;
 
-//   try {
-//     const messages = await ChatMessage.find({ roomId }).sort({ timestamp: 1 }).limit(50);
-//     res.json(messages);
-//   } catch (err) {
-//     console.error('Error fetching messages:', err);
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// });
+app.get('/api/usersVisibleTo/:userId', async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+  
+  try {
+    const requestingUser = await OdinCircledbModel.findById(req.params.userId)
+      .select('unlockedCount');
+    
+    if (!requestingUser) {
+      return res.status(404).json({ message: 'Requesting user not found' });
+    }
+
+    const unlockedCount = requestingUser.unlockedCount ?? 10;
+
+    const pageInt = parseInt(page);
+    const limitInt = parseInt(limit);
+
+    // Ensure you don't fetch beyond unlockedCount
+    const effectiveLimit = Math.min(
+      limitInt, 
+      unlockedCount - (pageInt - 1) * limitInt
+    );
+
+    const users = await OdinCircledbModel.find({ _id: { $ne: req.params.userId } })
+      .select('fullName email image')
+      .skip((pageInt - 1) * limitInt)
+      .limit(effectiveLimit);
+
+    const hasMore = pageInt * limitInt < unlockedCount;
+
+    // ✅ Add online status here
+    const usersWithStatus = users.map(u => ({
+      ...u.toObject(),
+      isOnline: onlineUsers.has(u._id.toString())
+    }));
+
+    res.json({ items: usersWithStatus, hasMore });
+  } catch (err) {
+    console.error('Error fetching visible users:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+
 
 
 app.get('/api/messages/status', async (req, res) => {
@@ -182,25 +216,6 @@ app.get('/block/list', async (req, res) => {
 });
 
 
-// GET /api/block/status?blockerId=abc&blockedId=xyz
-// app.get('/block/status', async (req, res) => {
-//   const { blockerId, blockedId } = req.query;
-
-//   if (!blockerId || !blockedId) return res.status(400).json({ error: 'Missing params' });
-
-// const block = await blockedUser.findOne({
-//   $or: [
-//     { blocker: blockerId, blocked: blockedId },
-//     { blocker: blockedId, blocked: blockerId }
-//   ]
-// });
-// res.json({ isBlocked: !!block });
-
-// });
-
-// Assuming you're using Mongoose
-// Assuming you're using Mongoose
-// GET /block/eitherBlocked?userA=xxx&userB=yyy
 app.get('/block/eitherBlocked', async (req, res) => {
   const { userA, userB } = req.query;
 
@@ -300,28 +315,6 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 });
 
 
-// app.get('/api/messages/:roomId', async (req, res) => {
-//   const { roomId } = req.params;
-//   const { before, limit = 50 } = req.query;
-
-//   try {
-//     const query = { roomId };
-
-//     if (before) {
-//       query.timestamp = { $lt: new Date(before) };
-//     }
-
-//     const messages = await ChatMessage.find(query)
-//       .sort({ timestamp: -1 }) // latest first
-//       .limit(parseInt(limit));
-
-//     // Send oldest → newest
-//     res.json(messages.reverse());
-//   } catch (err) {
-//     console.error('❌ Error fetching messages:', err);
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// });
 
 app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
@@ -367,55 +360,6 @@ app.get('/api/messages/:roomId', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-
-// app.get('/api/messages/status', async (req, res) => {
-//   const { roomId, userId } = req.query;
-
-//   if (!roomId || !userId) {
-//     return res.status(400).json({ error: 'roomId and userId are required' });
-//   }
-
-//   try {
-//     // Step 1: Find all messages that were sent to this user but not yet marked as delivered or read
-//     const undeliveredMessages = await ChatMessage.find({
-//       roomId,
-//       receiverId: userId,
-//       status: 'sent', // only those still in 'sent' state
-//     }).select('_id senderId');
-
-//     if (undeliveredMessages.length === 0) {
-//       return res.status(200).json({ updated: 0 });
-//     }
-
-//     const messageIds = undeliveredMessages.map((msg) => msg._id);
-//     const senderIds = [...new Set(undeliveredMessages.map((msg) => msg.senderId.toString()))];
-
-//     // Step 2: Update messages to "delivered"
-//     const result = await ChatMessage.updateMany(
-//       { _id: { $in: messageIds } },
-//       { status: 'delivered' }
-//     );
-
-//     // Step 3: Notify sender(s) that their message was delivered
-//     for (const senderId of senderIds) {
-//       const socketId = onlineUsers.get(senderId);
-//       if (socketId) {
-//         io.to(socketId).emit('message-status-updated', {
-//           messageIds,
-//           status: 'delivered',
-//         });
-//       }
-//     }
-
-//     return res.status(200).json({ updated: result.modifiedCount });
-//   } catch (err) {
-//     console.error('❌ Error in /api/messages/status:', err);
-//     return res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
-
-
 
 
 
