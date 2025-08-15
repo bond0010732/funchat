@@ -131,6 +131,23 @@ app.get('/api/usersVisibleTo/:userId', async (req, res) => {
 
 
 
+io.on('connection', (socket) => {
+  const userId = socket.handshake.query.userId; // Pass this from client when connecting
+
+  if (userId) {
+    onlineUsers.add(userId);
+    io.emit('userOnline', userId); // Broadcast to all clients
+    console.log(`🔵 ${userId} is online`);
+  }
+
+  socket.on('disconnect', () => {
+    if (userId) {
+      onlineUsers.delete(userId);
+      io.emit('userOffline', userId); // Broadcast to all clients
+      console.log(`⚪ ${userId} is offline`);
+    }
+  });
+});
 
 
 app.get('/api/messages/status', async (req, res) => {
