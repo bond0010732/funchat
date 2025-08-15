@@ -393,20 +393,27 @@ io.on('connection', (socket) => {
 });
 
 
-  socket.on('userJoin', (userId) => {
+socket.on('userJoin', (userId) => {
     if (userId) {
-      onlineUsers.add(userId);
-      io.emit('onlineUsers', Array.from(onlineUsers));
+      onlineUsers.set(userId, socket.id); // store both ID and socket
+      io.emit('onlineUsers', Array.from(onlineUsers.keys())); // send IDs only
+    }
+  });
+
+  socket.on('userLeave', (userId) => {
+    if (userId) {
+      onlineUsers.delete(userId);
+      io.emit('onlineUsers', Array.from(onlineUsers.keys()));
     }
   });
 
   // When a user explicitly leaves
-  socket.on('userLeave', (userId) => {
-    if (userId) {
-      onlineUsers.delete(userId);
-      io.emit('onlineUsers', Array.from(onlineUsers));
-    }
-  });
+  // socket.on('userLeave', (userId) => {
+  //   if (userId) {
+  //     onlineUsers.delete(userId);
+  //     io.emit('onlineUsers', Array.from(onlineUsers));
+  //   }
+  // });
 
 
   socket.on('joinRoom', ({ roomId, userId }) => {
