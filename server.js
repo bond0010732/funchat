@@ -393,6 +393,22 @@ io.on('connection', (socket) => {
 });
 
 
+  socket.on('userJoin', (userId) => {
+    if (userId) {
+      onlineUsers.add(userId);
+      io.emit('onlineUsers', Array.from(onlineUsers));
+    }
+  });
+
+  // When a user explicitly leaves
+  socket.on('userLeave', (userId) => {
+    if (userId) {
+      onlineUsers.delete(userId);
+      io.emit('onlineUsers', Array.from(onlineUsers));
+    }
+  });
+
+
   socket.on('joinRoom', ({ roomId, userId }) => {
   socket.userId = userId; // Attach to socket
   socket.join(roomId);
