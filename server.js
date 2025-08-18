@@ -349,58 +349,23 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 });
 
 
-// app.post('/send', async (req, res) => {
-//   try {
-//     const { roomId, msg } = req.body;
+router.get('/check/:userA/:userB', async (req, res) => {
+  try {
+    const { userA, userB } = req.params;
 
-//     if (!msg || !msg.senderId || !msg.receiverId) {
-//       return res.status(400).json({ error: 'Invalid message payload' });
-//     }
+    const isUnlocked = await UnlockAccess.exists({
+      $or: [
+        { userA, userB },
+        { userA: userB, userB: userA }, // swap order to allow either to unlock
+      ],
+    });
 
-//     const { senderId, receiverId } = msg;
+    res.json({ unlocked: !!isUnlocked }); // returns true/false
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-//     // ✅ Step 1: Check unlock
-//     const isUnlocked = await UnlockAccess.exists({
-//       $or: [
-//         { userA: senderId, userB: receiverId },
-//         { userA: receiverId, userB: senderId },
-//       ],
-//     });
-
-//     if (!isUnlocked) {
-//       return res.status(403).json({ error: 'You must unlock access to chat' });
-//     }
-
-//     // ✅ Step 2: Save message
-//     const savedMsg = await ChatMessage.create({
-//       text: msg.text || '',
-//       imageUrl: msg.imageUrl || '',
-//       gifUrl: msg.gifUrl,
-//       videoUrl: msg.videoUrl,
-//       senderId,
-//       receiverId,
-//       roomId,
-//       status: 'sent',
-//     });
-
-//     // ✅ Step 3: Push notification if receiver is offline
-//     const receiverUser = await OdinCircledbModel.findById(receiverId);
-//     const senderUser = await OdinCircledbModel.findById(senderId);
-
-//     if (receiverUser?.expoPushToken) {
-//       await sendPushNotification(
-//         receiverUser.expoPushToken,
-//         msg.text || '[Media Message]',
-//         senderUser?.fullName || 'Someone'
-//       );
-//     }
-
-//     res.json(savedMsg);
-//   } catch (err) {
-//     console.error('❌ Error in /messages/send:', err.message);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// });
 
 app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
