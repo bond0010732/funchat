@@ -367,6 +367,51 @@ router.get('/check/:userA/:userB', async (req, res) => {
 });
 
 
+// POST /unlock/pay
+router.post('/pay', async (req, res) => {
+  try {
+    const { userA, userB, cost } = req.body;
+
+    if (!userA || !userB || !cost) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    // 1️⃣ Fetch payer's wallet balance
+    const payer = await OdinCircledbModel.findById(userA).select('wallet');
+    if (!payer) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if ((payer.wallet?.balance || 0) < cost) {
+      return res.status(400).json({ success: false, message: 'Insufficient balance' });
+    }
+
+    // 2️⃣ Deduct the cost
+    payer.wallet.balance -= cost;
+    await payer.save();
+
+    // 3️⃣ Create UnlockAccess record (if not already exists)
+    const existing = await UnlockAccess.findOne({
+      $or: [
+        { userA, userB },
+        { userA: userB, userB: userA },
+      ],
+    });
+
+    if (!existing) {
+      await UnlockAccess.create({
+        userA,
+        userB,
+        unlockedBy: userA,
+        cost,
+      });
+    }
+
+    return res.json({ success: true, message: 'Access unlocked successfully' });
+  } catch (err) {
+    console.error('Error in /unlock/pay:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
   const { before, limit = 50, currentUserId } = req.query;
