@@ -515,6 +515,17 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
       return;
     }
 
+        // ✅ Step 2: Check if access is unlocked
+    const isUnlocked = await UnlockAccess.exists({
+      $or: [
+        { userA: senderId, userB: receiverId },
+        { userA: receiverId, userB: senderId },
+      ],
+    });
+
+    if (!isUnlocked) {
+      return res.status(403).json({ error: 'You must unlock access to chat' });
+    }
     // Save message to DB
     const savedMsg = await ChatMessage.create({
       text: msg.text || '',
