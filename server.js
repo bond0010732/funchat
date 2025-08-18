@@ -8,6 +8,7 @@ const OdinCircledbModel = require("./models/odincircledb");
 const Device = require('./models/Device');
 const ChatsFriends = require('./models/ChatsFriends');
 const blockedUser = require('./models/BlockedModel')
+const UnlockAccess = require("./models/UnlockAccessModel");
 const reportUser = require('./models/ReportModel')
 require("dotenv").config();
 
@@ -157,6 +158,31 @@ app.get('/api/messages/status', async (req, res) => {
 
 
 // POST /api/block
+// app.post('/block', async (req, res) => {
+//   console.log('📥 Incoming block request:', req.body);
+
+//   const { blockerId, blockedId } = req.body || {};
+
+//   if (!blockerId || !blockedId) {
+//     console.log('❌ Missing blockerId or blockedId');
+//     return res.status(400).json({ error: 'Missing blockerId or blockedId' });
+//   }
+
+//   try {
+//     const exists = await blockedUser.findOne({ blocker: blockerId, blocked: blockedId });
+//     if (exists) {
+//       return res.status(400).json({ error: 'Already blocked' });
+//     }
+
+//     await blockedUser.create({ blocker: blockerId, blocked: blockedId });
+//     res.json({ message: 'User blocked successfully' });
+//   } catch (err) {
+//     console.error('❌ Block failed:', err);
+//     res.status(500).json({ error: 'Failed to block user' });
+//   }
+// });
+
+// POST /api/block
 app.post('/block', async (req, res) => {
   console.log('📥 Incoming block request:', req.body);
 
@@ -173,8 +199,18 @@ app.post('/block', async (req, res) => {
       return res.status(400).json({ error: 'Already blocked' });
     }
 
+    // Create block
     await blockedUser.create({ blocker: blockerId, blocked: blockedId });
-    res.json({ message: 'User blocked successfully' });
+
+    // 🔒 Remove any unlocks between these two users (block overrides unlock)
+    await UnlockAccess.deleteMany({
+      $or: [
+        { userA: blockerId, userB: blockedId },
+        { userA: blockedId, userB: blockerId },
+      ],
+    });
+
+    res.json({ message: 'User blocked successfully, unlocks removed' });
   } catch (err) {
     console.error('❌ Block failed:', err);
     res.status(500).json({ error: 'Failed to block user' });
@@ -194,6 +230,7 @@ app.post('/unblock', async (req, res) => {
       return res.status(404).json({ error: 'User is not currently blocked' });
     }
 
+    // Note: we do NOT auto-unlock here. Users must pay again if needed.
     res.json({ message: 'User unblocked successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to unblock user' });
