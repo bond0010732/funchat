@@ -526,7 +526,7 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
       ],
     });
 
-    if (!isUnlocked) {
+    if (isUnlocked) {
       // return res.status(403).json({ error: 'You must unlock access to chat' });
       socket.emit('error', { error: 'You must unlock access to chat' });
     }
