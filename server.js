@@ -368,6 +368,7 @@ app.get('/check/:userA/:userB', async (req, res) => {
 
 
 // POST /unlock/pay
+// POST /unlock/pay
 app.post('/pay', async (req, res) => {
   try {
     const { userA, userB, cost } = req.body;
@@ -380,6 +381,8 @@ app.post('/pay', async (req, res) => {
     const payer = await OdinCircledbModel.findById(userA).select('wallet');
     if (!payer) return res.status(404).json({ success: false, message: 'User not found' });
 
+    console.log(`User ${userA} current balance: ₦${payer.wallet?.balance || 0}`);
+
     if ((payer.wallet?.balance || 0) < cost) {
       return res.status(400).json({ success: false, message: 'Insufficient balance' });
     }
@@ -387,6 +390,8 @@ app.post('/pay', async (req, res) => {
     // 2️⃣ Deduct the cost
     payer.wallet.balance -= cost;
     await payer.save();
+
+    console.log(`User ${userA} new balance after deducting ₦${cost}: ₦${payer.wallet.balance}`);
 
     // 3️⃣ Create UnlockAccess record (if not already exists)
     const existing = await UnlockAccess.findOne({
@@ -403,9 +408,12 @@ app.post('/pay', async (req, res) => {
         unlockedBy: userA,
         cost,
       });
+      console.log(`UnlockAccess record created for ${userA} -> ${userB}`);
+    } else {
+      console.log(`UnlockAccess record already exists for ${userA} and ${userB}`);
     }
 
-    return res.json({ success: true, message: 'Access unlocked successfully' });
+    return res.json({ success: true, message: 'Access unlocked successfully', newBalance: payer.wallet.balance });
   } catch (err) {
     console.error('Error in /unlock/pay:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
