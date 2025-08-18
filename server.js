@@ -349,7 +349,7 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 });
 
 
-router.get('/check/:userA/:userB', async (req, res) => {
+app.get('/check/:userA/:userB', async (req, res) => {
   try {
     const { userA, userB } = req.params;
 
@@ -368,7 +368,7 @@ router.get('/check/:userA/:userB', async (req, res) => {
 
 
 // POST /unlock/pay
-router.post('/pay', async (req, res) => {
+app.post('/pay', async (req, res) => {
   try {
     const { userA, userB, cost } = req.body;
 
