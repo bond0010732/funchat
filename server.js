@@ -515,6 +515,9 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
       return;
     }
 
+      const senderId = msg.senderId;
+    const receiverId = msg.receiverId;
+
         // ✅ Step 2: Check if access is unlocked
     const isUnlocked = await UnlockAccess.exists({
       $or: [
