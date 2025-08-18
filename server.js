@@ -349,58 +349,58 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 });
 
 
-app.post('/send', async (req, res) => {
-  try {
-    const { roomId, msg } = req.body;
+// app.post('/send', async (req, res) => {
+//   try {
+//     const { roomId, msg } = req.body;
 
-    if (!msg || !msg.senderId || !msg.receiverId) {
-      return res.status(400).json({ error: 'Invalid message payload' });
-    }
+//     if (!msg || !msg.senderId || !msg.receiverId) {
+//       return res.status(400).json({ error: 'Invalid message payload' });
+//     }
 
-    const { senderId, receiverId } = msg;
+//     const { senderId, receiverId } = msg;
 
-    // ✅ Step 1: Check unlock
-    const isUnlocked = await UnlockAccess.exists({
-      $or: [
-        { userA: senderId, userB: receiverId },
-        { userA: receiverId, userB: senderId },
-      ],
-    });
+//     // ✅ Step 1: Check unlock
+//     const isUnlocked = await UnlockAccess.exists({
+//       $or: [
+//         { userA: senderId, userB: receiverId },
+//         { userA: receiverId, userB: senderId },
+//       ],
+//     });
 
-    if (!isUnlocked) {
-      return res.status(403).json({ error: 'You must unlock access to chat' });
-    }
+//     if (!isUnlocked) {
+//       return res.status(403).json({ error: 'You must unlock access to chat' });
+//     }
 
-    // ✅ Step 2: Save message
-    const savedMsg = await ChatMessage.create({
-      text: msg.text || '',
-      imageUrl: msg.imageUrl || '',
-      gifUrl: msg.gifUrl,
-      videoUrl: msg.videoUrl,
-      senderId,
-      receiverId,
-      roomId,
-      status: 'sent',
-    });
+//     // ✅ Step 2: Save message
+//     const savedMsg = await ChatMessage.create({
+//       text: msg.text || '',
+//       imageUrl: msg.imageUrl || '',
+//       gifUrl: msg.gifUrl,
+//       videoUrl: msg.videoUrl,
+//       senderId,
+//       receiverId,
+//       roomId,
+//       status: 'sent',
+//     });
 
-    // ✅ Step 3: Push notification if receiver is offline
-    const receiverUser = await OdinCircledbModel.findById(receiverId);
-    const senderUser = await OdinCircledbModel.findById(senderId);
+//     // ✅ Step 3: Push notification if receiver is offline
+//     const receiverUser = await OdinCircledbModel.findById(receiverId);
+//     const senderUser = await OdinCircledbModel.findById(senderId);
 
-    if (receiverUser?.expoPushToken) {
-      await sendPushNotification(
-        receiverUser.expoPushToken,
-        msg.text || '[Media Message]',
-        senderUser?.fullName || 'Someone'
-      );
-    }
+//     if (receiverUser?.expoPushToken) {
+//       await sendPushNotification(
+//         receiverUser.expoPushToken,
+//         msg.text || '[Media Message]',
+//         senderUser?.fullName || 'Someone'
+//       );
+//     }
 
-    res.json(savedMsg);
-  } catch (err) {
-    console.error('❌ Error in /messages/send:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+//     res.json(savedMsg);
+//   } catch (err) {
+//     console.error('❌ Error in /messages/send:', err.message);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 
 app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
@@ -560,69 +560,69 @@ socket.on('leaveRoom', ({ roomId, userId }) => {
 
 
 
-// socket.on('sendMessage', async ({ roomId, msg }) => {
-//   try {
-//     if (!msg) {
-//       console.error('❌ Invalid message payload: msg is missing');
-//       return;
-//     }
+socket.on('sendMessage', async ({ roomId, msg }) => {
+  try {
+    if (!msg) {
+      console.error('❌ Invalid message payload: msg is missing');
+      return;
+    }
 
-//       const senderId = msg.senderId;
-//     const receiverId = msg.receiverId;
+      const senderId = msg.senderId;
+    const receiverId = msg.receiverId;
 
-//         // ✅ Step 2: Check if access is unlocked
-//     const isUnlocked = await UnlockAccess.exists({
-//       $or: [
-//         { userA: senderId, userB: receiverId },
-//         { userA: receiverId, userB: senderId },
-//       ],
-//     });
+    //     // ✅ Step 2: Check if access is unlocked
+    // const isUnlocked = await UnlockAccess.exists({
+    //   $or: [
+    //     { userA: senderId, userB: receiverId },
+    //     { userA: receiverId, userB: senderId },
+    //   ],
+    // });
 
-//     if (isUnlocked) {
-//       // return res.status(403).json({ error: 'You must unlock access to chat' });
-//       socket.emit('error', { error: 'You must unlock access to chat' });
-//     }
+    // if (isUnlocked) {
+    //   // return res.status(403).json({ error: 'You must unlock access to chat' });
+    //   socket.emit('error', { error: 'You must unlock access to chat' });
+    // }
 
-//     // Save message to DB
-//     const savedMsg = await ChatMessage.create({
-//       text: msg.text || '',
-//       imageUrl: msg.imageUrl || '',
-//       gifUrl: msg.gifUrl,
-//       videoUrl: msg.videoUrl,
-//       senderId: msg.senderId,
-//       receiverId: msg.receiverId,
-//       roomId,
-//       status: 'sent',
-//     });
+    // Save message to DB
+    const savedMsg = await ChatMessage.create({
+      text: msg.text || '',
+      imageUrl: msg.imageUrl || '',
+      gifUrl: msg.gifUrl,
+      videoUrl: msg.videoUrl,
+      senderId: msg.senderId,
+      receiverId: msg.receiverId,
+      roomId,
+      status: 'sent',
+    });
 
-//     // Emit to room
-//     io.to(roomId).emit('newMessage', savedMsg);
+    // Emit to room
+    io.to(roomId).emit('newMessage', savedMsg);
 
-//     // Check if receiver is online
-//     const receiverSocketId = onlineUsers.get(msg.receiverId);
+    // Check if receiver is online
+    const receiverSocketId = onlineUsers.get(msg.receiverId);
 
-//     if (receiverSocketId) {
-//       // ✅ Receiver is online -> deliver and update status
-//       //io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
-//        io.to(receiverSocketId).emit('message-received', savedMsg); // optional event
-//       // await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
-//     } else {
-//       // ❌ Receiver is offline -> send push notification
-//       const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
-//       const senderUser = await OdinCircledbModel.findById(msg.senderId);
+    if (receiverSocketId) {
+      // ✅ Receiver is online -> deliver and update status
+      //io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
+       io.to(receiverSocketId).emit('message-received', savedMsg); // optional event
+      // await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
+    } else {
+      // ❌ Receiver is offline -> send push notification
+      const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
+      const senderUser = await OdinCircledbModel.findById(msg.senderId);
 
-//       if (receiverUser?.expoPushToken) {
-//         await sendPushNotification(
-//           receiverUser.expoPushToken,
-//           msg.text || '[Media Message]',
-//           senderUser?.fullName || 'Someone'
-//         );
-//       }
-//     }
-//   } catch (err) {
-//     console.error('❌ Error saving message:', err.message);
-//   }
-// });
+      if (receiverUser?.expoPushToken) {
+        await sendPushNotification(
+          receiverUser.expoPushToken,
+          msg.text || '[Media Message]',
+          senderUser?.fullName || 'Someone'
+        );
+      }
+    }
+  } catch (err) {
+    console.error('❌ Error saving message:', err.message);
+  }
+});
 
 
 
