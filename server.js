@@ -6,6 +6,7 @@ const { Expo } = require('expo-server-sdk');
 const ChatModel = require("./models/ChatModel");
 const OdinCircledbModel = require("./models/odincircledb");
 const Device = require('./models/Device');
+const AddTimeLog = require('./models/AddTimeLog');
 const ChatsFriends = require('./models/ChatsFriends');
 const blockedUser = require('./models/BlockedModel')
 const UnlockAccess = require("./models/UnlockAccessModel");
@@ -406,6 +407,10 @@ app.post('/pay', async (req, res) => {
         userA,
         userB,
         unlockedBy: userA,
+        cost,
+      });
+        await AddTimeLog.create({
+        userId,
         cost,
       });
       console.log(`UnlockAccess record created for ${userA} -> ${userB}`);
