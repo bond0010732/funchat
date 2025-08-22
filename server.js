@@ -7,6 +7,7 @@ const ChatModel = require("./models/ChatModel");
 const OdinCircledbModel = require("./models/odincircledb");
 const Device = require('./models/Device');
 const AddTimeLog = require('./models/AddTimeLog');
+const AddFeature = require('./models/AddFeature');
 const ChatsFriends = require('./models/ChatsFriends');
 const blockedUser = require('./models/BlockedModel')
 const UnlockAccess = require("./models/UnlockAccessModel");
@@ -412,6 +413,12 @@ app.post('/pay', async (req, res) => {
 
       // 👇 Log in AddTimeLog with payer + type
       await AddTimeLog.create({
+        userId: userA,
+        cost,
+        type: type || "unlock_access" // default type if frontend didn’t pass one
+      });
+
+        await AddFeature.create({
         userId: userA,
         cost,
         type: type || "unlock_access" // default type if frontend didn’t pass one
