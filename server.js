@@ -372,7 +372,7 @@ app.get('/check/:userA/:userB', async (req, res) => {
 // POST /unlock/pay
 app.post('/pay', async (req, res) => {
   try {
-    const { userA, userB, cost } = req.body;
+    const { userA, userB, cost, type } = req.body; // 👈 include type from frontend
 
     if (!userA || !userB || !cost) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -409,21 +409,30 @@ app.post('/pay', async (req, res) => {
         unlockedBy: userA,
         cost,
       });
-        await AddTimeLog.create({
-        userId,
+
+      // 👇 Log in AddTimeLog with payer + type
+      await AddTimeLog.create({
+        userId: userA,
         cost,
+        type: type || "unlock_access" // default type if frontend didn’t pass one
       });
-      console.log(`UnlockAccess record created for ${userA} -> ${userB}`);
+
+      console.log(`UnlockAccess + AddTimeLog created for ${userA} -> ${userB}`);
     } else {
       console.log(`UnlockAccess record already exists for ${userA} and ${userB}`);
     }
 
-    return res.json({ success: true, message: 'Access unlocked successfully', newBalance: payer.wallet.balance });
+    return res.json({ 
+      success: true, 
+      message: 'Access unlocked successfully', 
+      newBalance: payer.wallet.balance 
+    });
   } catch (err) {
     console.error('Error in /unlock/pay:', err);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
 
 app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
