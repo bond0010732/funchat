@@ -486,7 +486,7 @@ app.post('/pay', async (req, res) => {
 //   }
 // });
 
-router.get('/api/messages/:roomId', async (req, res) => {
+app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
   const { before, limit = 50, currentUserId } = req.query;
 
