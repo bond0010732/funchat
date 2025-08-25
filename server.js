@@ -441,34 +441,91 @@ app.post('/pay', async (req, res) => {
 });
 
 
-app.get('/api/messages/:roomId', async (req, res) => {
+// app.get('/api/messages/:roomId', async (req, res) => {
+//   const { roomId } = req.params;
+//   const { before, limit = 50, currentUserId } = req.query;
+
+//   try {
+//     const query = { roomId };
+
+//     if (before) {
+//       query.timestamp = { $lt: new Date(before) };
+//     }
+
+//     const messages = await ChatMessage.find(query)
+//       .sort({ timestamp: -1 })
+//       .limit(parseInt(limit));
+
+//     const deliveredMessages = [];
+
+//     for (const msg of messages) {
+//       // ✅ Only update if current user is the receiver
+//       if (
+//         msg.receiverId?.toString() === currentUserId &&
+//         msg.status === 'sent'
+//       ) {
+//         msg.status = 'delivered';
+//         await msg.save();
+//         deliveredMessages.push(msg._id);
+
+//         // ✅ Notify sender that message was delivered
+//         const senderSocket = onlineUsers.get(msg.senderId?.toString());
+//         if (senderSocket) {
+//           io.to(senderSocket).emit('message-delivered', {
+//             messageId: msg._id,
+//             roomId: msg.roomId,
+//           });
+//         }
+//       }
+//     }
+
+//     res.json(messages.reverse()); // Send oldest → newest
+//   } catch (err) {
+//     console.error('❌ Error fetching messages:', err);
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
+
+router.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
   const { before, limit = 50, currentUserId } = req.query;
 
   try {
+    // Build query
     const query = { roomId };
 
     if (before) {
       query.timestamp = { $lt: new Date(before) };
     }
 
-    const messages = await ChatMessage.find(query)
+    // Fetch messages sorted by newest first
+    const messages = await ChatModel.find(query)
       .sort({ timestamp: -1 })
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .select('senderId receiverId author message timestamp status delivered seen deliveredAt seenAt roomId');
 
-    const deliveredMessages = [];
+    // Bulk update 'delivered' status if current user is receiver
+    const toDeliver = messages.filter(
+      msg => msg.receiverId?.toString() === currentUserId && msg.status === 'sent'
+    );
 
-    for (const msg of messages) {
-      // ✅ Only update if current user is the receiver
-      if (
-        msg.receiverId?.toString() === currentUserId &&
-        msg.status === 'sent'
-      ) {
-        msg.status = 'delivered';
-        await msg.save();
-        deliveredMessages.push(msg._id);
+    if (toDeliver.length > 0) {
+      const ids = toDeliver.map(m => m._id);
 
-        // ✅ Notify sender that message was delivered
+      // Update messages in bulk
+      await ChatModel.updateMany(
+        { _id: { $in: ids } },
+        { 
+          $set: { 
+            status: 'delivered', 
+            delivered: true, 
+            deliveredAt: new Date() 
+          } 
+        }
+      );
+
+      // Notify senders via WebSocket
+      toDeliver.forEach(msg => {
         const senderSocket = onlineUsers.get(msg.senderId?.toString());
         if (senderSocket) {
           io.to(senderSocket).emit('message-delivered', {
@@ -476,17 +533,16 @@ app.get('/api/messages/:roomId', async (req, res) => {
             roomId: msg.roomId,
           });
         }
-      }
+      });
     }
 
-    res.json(messages.reverse()); // Send oldest → newest
+    // Return messages oldest → newest
+    res.json(messages.reverse());
   } catch (err) {
     console.error('❌ Error fetching messages:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-
 
 
 
