@@ -807,7 +807,11 @@ async function sendPushNotification(expoPushToken, message, senderFullName) {
       sound: "default",
       title: `New message from ${senderFullName}`,
       body: message,
-      data: { message, senderFullName },
+     data: { 
+        message, 
+        senderFullName, 
+        screen: "UnreadMessagesList"  // 👈 add screen info
+      },
     }];
 
     console.log("📦 Messages to send:", messages);
