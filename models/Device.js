@@ -3,7 +3,7 @@ const Schema = mongoose.Schema;
 
 // Define the schema for device registration
 const deviceSchema = new Schema({
-  expoPushToken: {
+  token: {
     type: String,
     required: true,
     unique: true // Ensure that each device has a unique token
