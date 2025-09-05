@@ -90,6 +90,66 @@ const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 const onlineUsers = new Map(); // userId -> socketId
 
 
+// Express route example
+router.post('/register-device', async (req, res) => {
+  const { token, userId } = req.body;
+
+  // Check if token and userId are not null
+  if (!token || !userId) {
+    return res.status(400).json({ success: false, message: 'token and userId are required' });
+  }
+
+  try {
+    let device = await Device.findOne({ token });
+
+    if (!device) {
+      // If no document found, log that a new device is being created
+      console.log('No existing device found, creating a new one.');
+      device = new Device({
+        token,
+        users: [{ _id: userId }], // Initialize with the first user
+      });
+    } else {
+      // Ensure device.users is not null or undefined
+      if (device.users && !device.users.some(user => user._id?.toString() === userId.toString())) {
+        device.users.push({ _id: userId }); // Add new userId if not already present
+      }
+    }
+
+    await device.save();
+    res.status(200).json({ success: true, message: 'User and token saved successfully' });
+  } catch (error) {
+    console.error('Error saving token:', error);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+});
+
+const saveDevice = async (token, userId) => {
+  try {
+    let device = await Device.findOne({ token });
+
+    if (!device) {
+      console.log('No existing device found, creating a new one.');
+      device = new Device({
+        token,
+        users: [{ _id: userId }],
+      });
+    } else {
+      if (device.users && !device.users.some(user => user._id.toString() === userId.toString())) {
+        device.users.push({ _id: userId });
+      }
+    }
+
+    await device.save();
+    return true;
+  } catch (error) {
+    console.error('Error saving token:', error);
+    return false;
+  }
+};
+
+
+
 app.get('/api/usersVisibleTo/:userId', async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
   
