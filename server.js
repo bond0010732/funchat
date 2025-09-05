@@ -91,7 +91,7 @@ const onlineUsers = new Map(); // userId -> socketId
 
 
 // Express route example
-router.post('/register-device', async (req, res) => {
+app.post('/register-device', async (req, res) => {
   const { token, userId } = req.body;
 
   // Check if token and userId are not null
