@@ -870,6 +870,15 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
     const senderId = msg.senderId;
     const receiverId = msg.receiverId;
 
+       // Fetch the receiver user from DB
+    const receiverUser = await OdinCircledbModel.findById(receiverId);
+    const senderUser = await OdinCircledbModel.findById(senderId);
+
+     // 🔍 Console log the receiver object to check tokens
+    console.log("📌 Receiver User Object:", receiverUser);
+    console.log("APNs Token:", receiverUser?.apnsToken);
+    console.log("Expo Push Token:", receiverUser?.expoPushToken);
+    
     // Save message to DB
     const savedMsg = await ChatMessage.create({
       text: msg.text || '',
