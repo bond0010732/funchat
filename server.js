@@ -988,6 +988,7 @@ socket.on('stop-typing', ({ to, from }) => {
 
 
 // 📲 Unified Push Notification Function (APNs + Expo)
+// 📲 Unified Push Notification Function (APNs + Expo)
 async function sendPushNotification(receiverUser, message, senderFullName) {
   try {
     console.log("🔔 Preparing to send notification...");
@@ -995,7 +996,7 @@ async function sendPushNotification(receiverUser, message, senderFullName) {
     console.log("Message Body:", message);
     console.log("Sender Name:", senderFullName);
 
-    // ✅ If user has APNs token (iOS)
+    // --- APNs Notification (iOS) ---
     if (receiverUser?.apnsToken) {
       console.log("📱 Sending APNs notification...");
 
@@ -1005,7 +1006,7 @@ async function sendPushNotification(receiverUser, message, senderFullName) {
         body: message,
       };
       notification.sound = "default";
-      notification.topic = "com.bond0011.betxcircleapp"; // 👈 your iOS bundle ID
+      notification.topic = "com.bond0011.betxcircleapp"; // your iOS bundle ID
       notification.payload = {
         message,
         senderFullName,
@@ -1014,44 +1015,44 @@ async function sendPushNotification(receiverUser, message, senderFullName) {
 
       try {
         const response = await apnProvider.send(notification, receiverUser.apnsToken);
-        console.log("📱 APNs response:", response);
+        console.log("📱 APNs Sent:", response.sent);
+        console.log("📱 APNs Failed:", response.failed);
       } catch (apnErr) {
         console.error("❌ Error sending APNs notification:", apnErr);
       }
     }
 
-    // ✅ If user has Expo push token (Android / iOS fallback)
-    else if (receiverUser?.expoPushToken) {
+    // --- Expo Notification (Android / iOS fallback) ---
+    if (receiverUser?.expoPushToken) {
       console.log("📲 Sending Expo notification...");
 
       if (!Expo.isExpoPushToken(receiverUser.expoPushToken)) {
         console.error(`❌ Invalid Expo push token: ${receiverUser.expoPushToken}`);
-        return;
-      }
+      } else {
+        const messages = [{
+          to: receiverUser.expoPushToken,
+          sound: "default",
+          title: `New message from ${senderFullName}`,
+          body: message,
+          data: { message, senderFullName, screen: "UnreadMessagesList" },
+        }];
 
-      const messages = [{
-        to: receiverUser.expoPushToken,
-        sound: "default",
-        title: `New message from ${senderFullName}`,
-        body: message,
-        data: { message, senderFullName, screen: "UnreadMessagesList" },
-      }];
+        const chunks = expo.chunkPushNotifications(messages);
+        console.log(`🔹 Split into ${chunks.length} chunk(s).`);
 
-      console.log("📦 Messages to send:", messages);
-
-      const chunks = expo.chunkPushNotifications(messages);
-      console.log(`🔹 Split into ${chunks.length} chunk(s).`);
-
-      for (const [index, chunk] of chunks.entries()) {
-        try {
-          console.log(`🚀 Sending Expo chunk ${index + 1}:`, chunk);
-          const receipts = await expo.sendPushNotificationsAsync(chunk);
-          console.log(`✅ Expo chunk ${index + 1} receipts:`, receipts);
-        } catch (chunkError) {
-          console.error(`❌ Error sending Expo push chunk ${index + 1}:`, chunkError);
+        for (const [index, chunk] of chunks.entries()) {
+          try {
+            const receipts = await expo.sendPushNotificationsAsync(chunk);
+            console.log(`✅ Expo chunk ${index + 1} receipts:`, receipts);
+          } catch (chunkError) {
+            console.error(`❌ Error sending Expo push chunk ${index + 1}:`, chunkError);
+          }
         }
       }
-    } else {
+    }
+
+    // --- No tokens available ---
+    if (!receiverUser?.apnsToken && !receiverUser?.expoPushToken) {
       console.log("⚠️ No push token available for this user.");
     }
 
@@ -1059,6 +1060,7 @@ async function sendPushNotification(receiverUser, message, senderFullName) {
     console.error("❌ Error in sendPushNotification:", error);
   }
 }
+
 
 
 
