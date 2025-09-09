@@ -867,50 +867,84 @@ socket.on('stop-typing', ({ to, from }) => {
 });
 
 // Push Notification Function
-async function sendPushNotification(expoPushToken, message, senderFullName) {
+// 📲 Unified Push Notification Function
+async function sendPushNotification(receiverUser, message, senderFullName) {
   try {
     console.log("🔔 Preparing to send notification...");
-    console.log("Expo Push Token:", expoPushToken);
+    console.log("Receiver:", receiverUser?._id);
     console.log("Message Body:", message);
     console.log("Sender Name:", senderFullName);
 
-    // Validate token
-    if (!Expo.isExpoPushToken(expoPushToken)) {
-      console.error(`❌ Invalid Expo push token: ${expoPushToken}`);
-      return;
-    }
+    // ✅ Check for APNs Token
+    if (receiverUser?.apnsToken) {
+      console.log("📱 Sending APNs notification...");
 
-    const messages = [{
-      to: expoPushToken,
-      sound: "default",
-      title: `New message from ${senderFullName}`,
-      body: message,
-     data: { 
-        message, 
-        senderFullName, 
-        screen: "UnreadMessagesList"  // 👈 add screen info
-      },
-    }];
+      const notification = new apn.Notification();
+      notification.alert = {
+        title: `New message from ${senderFullName}`,
+        body: message || "[Media Message]",
+      };
+      notification.sound = "default";
+      notification.topic = "com.bond0011.betxcircleapp"; // 👈 your iOS bundle ID
+      notification.payload = {
+        message: message || "[Media Message]",
+        senderFullName: senderFullName,
+        screen: "UnreadMessagesList",
+      };
 
-    console.log("📦 Messages to send:", messages);
-
-    const chunks = expo.chunkPushNotifications(messages);
-    console.log(`🔹 Split into ${chunks.length} chunk(s).`);
-
-    for (const [index, chunk] of chunks.entries()) {
       try {
-        console.log(`🚀 Sending chunk ${index + 1}:`, chunk);
-        const receipts = await expo.sendPushNotificationsAsync(chunk);
-        console.log(`✅ Chunk ${index + 1} receipts:`, receipts);
-      } catch (chunkError) {
-        console.error(`❌ Error sending push notification chunk ${index + 1}:`, chunkError);
+        const response = await apnProvider.send(notification, receiverUser.apnsToken);
+        console.log("📱 APNs response:", response);
+      } catch (apnErr) {
+        console.error("❌ Error sending APNs notification:", apnErr);
       }
     }
 
+    // ✅ Check for Expo Push Token
+    else if (receiverUser?.expoPushToken) {
+      console.log("📲 Sending Expo notification...");
+
+      // Validate token
+      if (!Expo.isExpoPushToken(receiverUser.expoPushToken)) {
+        console.error(`❌ Invalid Expo push token: ${receiverUser.expoPushToken}`);
+        return;
+      }
+
+      const messages = [{
+        to: receiverUser.expoPushToken,
+        sound: "default",
+        title: `New message from ${senderFullName}`,
+        body: message || "[Media Message]",
+        data: { 
+          message: message || "[Media Message]", 
+          senderFullName, 
+          screen: "UnreadMessagesList"
+        },
+      }];
+
+      const chunks = expo.chunkPushNotifications(messages);
+      console.log(`🔹 Split into ${chunks.length} chunk(s).`);
+
+      for (const [index, chunk] of chunks.entries()) {
+        try {
+          console.log(`🚀 Sending Expo chunk ${index + 1}:`, chunk);
+          const receipts = await expo.sendPushNotificationsAsync(chunk);
+          console.log(`✅ Expo chunk ${index + 1} receipts:`, receipts);
+        } catch (chunkError) {
+          console.error(`❌ Error sending Expo push chunk ${index + 1}:`, chunkError);
+        }
+      }
+    }
+
+    else {
+      console.log("⚠️ No push token available for user.");
+    }
+
   } catch (error) {
-    console.error("❌ Error sending push notification:", error);
+    console.error("❌ Error in sendPushNotification:", error);
   }
 }
+
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
