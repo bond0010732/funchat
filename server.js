@@ -797,7 +797,57 @@ socket.on('leaveRoom', ({ roomId, userId }) => {
 // });
 
 
+socket.on('sendMessage', async ({ roomId, msg }) => {
+  try {
+    if (!msg) {
+      console.error('❌ Invalid message payload: msg is missing');
+      return;
+    }
 
+    const senderId = msg.senderId;
+    const receiverId = msg.receiverId;
+
+    // Save message to DB
+    const savedMsg = await ChatMessage.create({
+      text: msg.text || '',
+      imageUrl: msg.imageUrl || '',
+      gifUrl: msg.gifUrl,
+      videoUrl: msg.videoUrl,
+      senderId: msg.senderId,
+      receiverId: msg.receiverId,
+      roomId,
+      status: 'sent',
+    });
+
+    // Emit to room
+    io.to(roomId).emit('newMessage', savedMsg);
+
+    // Check if receiver is online
+    const receiverSocketId = onlineUsers.get(msg.receiverId);
+
+    if (receiverSocketId) {
+      // ✅ Receiver is online -> deliver and update status
+      io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
+      io.to(receiverSocketId).emit('message-received', savedMsg);
+
+      await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
+    } else {
+      // ❌ Receiver is offline -> send push notification
+      const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
+      const senderUser = await OdinCircledbModel.findById(msg.senderId);
+
+      if (receiverUser) {
+        await sendPushNotification(
+          receiverUser,
+          msg.text || '[Media Message]',
+          senderUser?.fullName || 'Someone'
+        );
+      }
+    }
+  } catch (err) {
+    console.error('❌ Error saving message:', err.message);
+  }
+});
 
 
 socket.on('message-delivered', async ({ messageId }) => {
@@ -865,57 +915,7 @@ socket.on('stop-typing', ({ to, from }) => {
 
 
 
-socket.on('sendMessage', async ({ roomId, msg }) => {
-  try {
-    if (!msg) {
-      console.error('❌ Invalid message payload: msg is missing');
-      return;
-    }
 
-    const senderId = msg.senderId;
-    const receiverId = msg.receiverId;
-
-    // Save message to DB
-    const savedMsg = await ChatMessage.create({
-      text: msg.text || '',
-      imageUrl: msg.imageUrl || '',
-      gifUrl: msg.gifUrl,
-      videoUrl: msg.videoUrl,
-      senderId: msg.senderId,
-      receiverId: msg.receiverId,
-      roomId,
-      status: 'sent',
-    });
-
-    // Emit to room
-    io.to(roomId).emit('newMessage', savedMsg);
-
-    // Check if receiver is online
-    const receiverSocketId = onlineUsers.get(msg.receiverId);
-
-    if (receiverSocketId) {
-      // ✅ Receiver is online -> deliver and update status
-      io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
-      io.to(receiverSocketId).emit('message-received', savedMsg);
-
-      await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
-    } else {
-      // ❌ Receiver is offline -> send push notification
-      const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
-      const senderUser = await OdinCircledbModel.findById(msg.senderId);
-
-      if (receiverUser) {
-        await sendPushNotification(
-          receiverUser,
-          msg.text || '[Media Message]',
-          senderUser?.fullName || 'Someone'
-        );
-      }
-    }
-  } catch (err) {
-    console.error('❌ Error saving message:', err.message);
-  }
-});
 
 
 // 📲 Unified Push Notification Function (APNs + Expo)
