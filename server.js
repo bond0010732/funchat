@@ -20,14 +20,6 @@ const server = http.createServer(app);
 const io = socketIo(server);
 const expo = new Expo();
 
-const apn = require("apn");
-
-// APNs provider setup (p12-based)
-const apnProvider = new apn.Provider({
-  cert: "publicnew_cert.pem",         // Apple-issued certificate
-  key: "privatenew_keys.pem",
-  production: true,              // set true for TestFlight / App Store builds
-});
 
 
 //const { CloudinaryStorage } = require('multer-storage-cloudinary');
@@ -986,6 +978,15 @@ socket.on('stop-typing', ({ to, from }) => {
   
 });
 
+
+const apn = require("apn");
+
+// APNs provider setup (p12-based)
+const apnProvider = new apn.Provider({
+  cert: "publicnew_cert.pem",         // Apple-issued certificate
+  key: "privatenew_keys.pem",
+  production: true,              // set true for TestFlight / App Store builds
+});
 
 // 📲 Unified Push Notification Function (APNs + Expo)
 // 📲 Unified Push Notification Function (APNs + Expo)
