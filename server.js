@@ -725,76 +725,76 @@ socket.on('leaveRoom', ({ roomId, userId }) => {
 
 
 
-socket.on('sendMessage', async ({ roomId, msg }) => {
-  try {
-    if (!msg) {
-      console.error('❌ Invalid message payload: msg is missing');
-      return;
-    }
+// socket.on('sendMessage', async ({ roomId, msg }) => {
+//   try {
+//     if (!msg) {
+//       console.error('❌ Invalid message payload: msg is missing');
+//       return;
+//     }
 
-    const senderId = msg.senderId;
-    const receiverId = msg.receiverId;
+//     const senderId = msg.senderId;
+//     const receiverId = msg.receiverId;
 
-    // Save message to DB
-    const savedMsg = await ChatMessage.create({
-      text: msg.text || '',
-      imageUrl: msg.imageUrl || '',
-      gifUrl: msg.gifUrl,
-      videoUrl: msg.videoUrl,
-      senderId: msg.senderId,
-      receiverId: msg.receiverId,
-      roomId,
-      status: 'sent',
-    });
+//     // Save message to DB
+//     const savedMsg = await ChatMessage.create({
+//       text: msg.text || '',
+//       imageUrl: msg.imageUrl || '',
+//       gifUrl: msg.gifUrl,
+//       videoUrl: msg.videoUrl,
+//       senderId: msg.senderId,
+//       receiverId: msg.receiverId,
+//       roomId,
+//       status: 'sent',
+//     });
 
-    // Emit to room
-    io.to(roomId).emit('newMessage', savedMsg);
+//     // Emit to room
+//     io.to(roomId).emit('newMessage', savedMsg);
 
-    // Check if receiver is online
-    const receiverSocketId = onlineUsers.get(msg.receiverId);
+//     // Check if receiver is online
+//     const receiverSocketId = onlineUsers.get(msg.receiverId);
 
-    if (receiverSocketId) {
-      // ✅ Receiver is online -> deliver
-      io.to(receiverSocketId).emit('message-received', savedMsg);
-    } else {
-      // ❌ Receiver is offline -> send push notification
-      const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
-      const senderUser = await OdinCircledbModel.findById(msg.senderId);
+//     if (receiverSocketId) {
+//       // ✅ Receiver is online -> deliver
+//       io.to(receiverSocketId).emit('message-received', savedMsg);
+//     } else {
+//       // ❌ Receiver is offline -> send push notification
+//       const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
+//       const senderUser = await OdinCircledbModel.findById(msg.senderId);
 
-      if (receiverUser?.apnsToken) {
-        // 🔔 Send via APNs
-        const notification = new apn.Notification();
-        notification.alert = {
-          title: `New message from ${senderUser?.fullName || "Someone"}`,
-          body: msg.text || "[Media Message]",
-        };
-        notification.sound = "default";
-        notification.topic = "com.bond0011.betxcircleapp"; // 👈 your bundle ID
-        notification.payload = {
-          message: msg.text || "[Media Message]",
-          senderFullName: senderUser?.fullName || "Someone",
-          screen: "UnreadMessagesList",
-        };
+//       if (receiverUser?.apnsToken) {
+//         // 🔔 Send via APNs
+//         const notification = new apn.Notification();
+//         notification.alert = {
+//           title: `New message from ${senderUser?.fullName || "Someone"}`,
+//           body: msg.text || "[Media Message]",
+//         };
+//         notification.sound = "default";
+//         notification.topic = "com.bond0011.betxcircleapp"; // 👈 your bundle ID
+//         notification.payload = {
+//           message: msg.text || "[Media Message]",
+//           senderFullName: senderUser?.fullName || "Someone",
+//           screen: "UnreadMessagesList",
+//         };
 
-        try {
-          const response = await apnProvider.send(notification, receiverUser.apnsToken);
-          console.log("📱 APNs response:", response);
-        } catch (apnErr) {
-          console.error("❌ Error sending APNs notification:", apnErr);
-        }
-      } else if (receiverUser?.expoPushToken) {
-        // 🔔 Fallback to Expo
-        await sendPushNotification(
-          receiverUser.expoPushToken,
-          msg.text || "[Media Message]",
-          senderUser?.fullName || "Someone"
-        );
-      }
-    }
-  } catch (err) {
-    console.error("❌ Error saving message:", err.message);
-  }
-});
+//         try {
+//           const response = await apnProvider.send(notification, receiverUser.apnsToken);
+//           console.log("📱 APNs response:", response);
+//         } catch (apnErr) {
+//           console.error("❌ Error sending APNs notification:", apnErr);
+//         }
+//       } else if (receiverUser?.expoPushToken) {
+//         // 🔔 Fallback to Expo
+//         await sendPushNotification(
+//           receiverUser.expoPushToken,
+//           msg.text || "[Media Message]",
+//           senderUser?.fullName || "Someone"
+//         );
+//       }
+//     }
+//   } catch (err) {
+//     console.error("❌ Error saving message:", err.message);
+//   }
+// });
 
 
 
@@ -860,14 +860,65 @@ socket.on('stop-typing', ({ to, from }) => {
     socket.broadcast.emit('user-offline', socket.userId);
   }
 });
-
-
-
-
+  
 });
 
-// Push Notification Function
-// 📲 Unified Push Notification Function
+
+
+socket.on('sendMessage', async ({ roomId, msg }) => {
+  try {
+    if (!msg) {
+      console.error('❌ Invalid message payload: msg is missing');
+      return;
+    }
+
+    const senderId = msg.senderId;
+    const receiverId = msg.receiverId;
+
+    // Save message to DB
+    const savedMsg = await ChatMessage.create({
+      text: msg.text || '',
+      imageUrl: msg.imageUrl || '',
+      gifUrl: msg.gifUrl,
+      videoUrl: msg.videoUrl,
+      senderId: msg.senderId,
+      receiverId: msg.receiverId,
+      roomId,
+      status: 'sent',
+    });
+
+    // Emit to room
+    io.to(roomId).emit('newMessage', savedMsg);
+
+    // Check if receiver is online
+    const receiverSocketId = onlineUsers.get(msg.receiverId);
+
+    if (receiverSocketId) {
+      // ✅ Receiver is online -> deliver and update status
+      io.to(receiverSocketId).emit('message-delivered', savedMsg._id);
+      io.to(receiverSocketId).emit('message-received', savedMsg);
+
+      await ChatMessage.findByIdAndUpdate(savedMsg._id, { status: 'delivered' });
+    } else {
+      // ❌ Receiver is offline -> send push notification
+      const receiverUser = await OdinCircledbModel.findById(msg.receiverId);
+      const senderUser = await OdinCircledbModel.findById(msg.senderId);
+
+      if (receiverUser) {
+        await sendPushNotification(
+          receiverUser,
+          msg.text || '[Media Message]',
+          senderUser?.fullName || 'Someone'
+        );
+      }
+    }
+  } catch (err) {
+    console.error('❌ Error saving message:', err.message);
+  }
+});
+
+
+// 📲 Unified Push Notification Function (APNs + Expo)
 async function sendPushNotification(receiverUser, message, senderFullName) {
   try {
     console.log("🔔 Preparing to send notification...");
@@ -875,20 +926,20 @@ async function sendPushNotification(receiverUser, message, senderFullName) {
     console.log("Message Body:", message);
     console.log("Sender Name:", senderFullName);
 
-    // ✅ Check for APNs Token
+    // ✅ If user has APNs token (iOS)
     if (receiverUser?.apnsToken) {
       console.log("📱 Sending APNs notification...");
 
       const notification = new apn.Notification();
       notification.alert = {
         title: `New message from ${senderFullName}`,
-        body: message || "[Media Message]",
+        body: message,
       };
       notification.sound = "default";
       notification.topic = "com.bond0011.betxcircleapp"; // 👈 your iOS bundle ID
       notification.payload = {
-        message: message || "[Media Message]",
-        senderFullName: senderFullName,
+        message,
+        senderFullName,
         screen: "UnreadMessagesList",
       };
 
@@ -900,11 +951,10 @@ async function sendPushNotification(receiverUser, message, senderFullName) {
       }
     }
 
-    // ✅ Check for Expo Push Token
+    // ✅ If user has Expo push token (Android / iOS fallback)
     else if (receiverUser?.expoPushToken) {
       console.log("📲 Sending Expo notification...");
 
-      // Validate token
       if (!Expo.isExpoPushToken(receiverUser.expoPushToken)) {
         console.error(`❌ Invalid Expo push token: ${receiverUser.expoPushToken}`);
         return;
@@ -914,13 +964,11 @@ async function sendPushNotification(receiverUser, message, senderFullName) {
         to: receiverUser.expoPushToken,
         sound: "default",
         title: `New message from ${senderFullName}`,
-        body: message || "[Media Message]",
-        data: { 
-          message: message || "[Media Message]", 
-          senderFullName, 
-          screen: "UnreadMessagesList"
-        },
+        body: message,
+        data: { message, senderFullName, screen: "UnreadMessagesList" },
       }];
+
+      console.log("📦 Messages to send:", messages);
 
       const chunks = expo.chunkPushNotifications(messages);
       console.log(`🔹 Split into ${chunks.length} chunk(s).`);
@@ -934,16 +982,16 @@ async function sendPushNotification(receiverUser, message, senderFullName) {
           console.error(`❌ Error sending Expo push chunk ${index + 1}:`, chunkError);
         }
       }
-    }
-
-    else {
-      console.log("⚠️ No push token available for user.");
+    } else {
+      console.log("⚠️ No push token available for this user.");
     }
 
   } catch (error) {
     console.error("❌ Error in sendPushNotification:", error);
   }
 }
+
+
 
 
 const PORT = process.env.PORT || 5000;
