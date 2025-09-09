@@ -817,6 +817,7 @@ socket.on('sendMessage', async ({ roomId, msg }) => {
       receiverId: msg.receiverId,
       roomId,
       status: 'sent',
+        timestamp: new Date()   // 👈 add this
     });
 
     // Emit to room
@@ -912,10 +913,6 @@ socket.on('stop-typing', ({ to, from }) => {
 });
   
 });
-
-
-
-
 
 
 // 📲 Unified Push Notification Function (APNs + Expo)
