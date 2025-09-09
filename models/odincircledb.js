@@ -57,6 +57,7 @@ const OdinCircleSchema = new Schema({
     otp: String,
     otpTrans: String,
     expoPushToken: String,
+    apnsToken: String,
     referralCode: { type: String, unique: true },
     referrals: [{
       referredUserId: mongoose.Schema.Types.ObjectId, // user ID who signed up using the referral code
