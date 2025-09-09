@@ -560,6 +560,69 @@ app.get('/api/messages/:roomId', async (req, res) => {
   const { roomId } = req.params;
   const { before, limit = 50, currentUserId } = req.query;
 
+  console.log("📌 Fetching messages for room:", roomId);
+  console.log("⏱ Before timestamp:", before);
+  console.log("📏 Limit:", limit);
+  console.log("👤 Current user:", currentUserId);
+
+  try {
+    // Build query
+    const query = { roomId };
+
+    if (before) {
+      query.timestamp = { $lt: new Date(before) };
+      console.log("🔹 Query with timestamp filter:", query.timestamp);
+    }
+
+    // Fetch messages sorted by newest first
+    const messages = await ChatMessage.find(query)
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+      .select(
+        'senderId receiverId text imageUrl gifUrl videoUrl timestamp status roomId'
+      );
+
+    console.log("📨 Messages found:", messages.length);
+
+    // Bulk update 'delivered' status if current user is receiver
+    const toDeliver = messages.filter(
+      msg => msg.receiverId?.toString() === currentUserId && msg.status === 'sent'
+    );
+    console.log("📬 Messages to mark as delivered:", toDeliver.length);
+
+    if (toDeliver.length > 0) {
+      const ids = toDeliver.map(m => m._id);
+
+      await ChatMessage.updateMany(
+        { _id: { $in: ids } },
+        { $set: { status: 'delivered', delivered: true, deliveredAt: new Date() } }
+      );
+
+      // Notify senders via WebSocket
+      toDeliver.forEach(msg => {
+        const senderSocket = onlineUsers.get(msg.senderId?.toString());
+        if (senderSocket) {
+          io.to(senderSocket).emit('message-delivered', {
+            messageId: msg._id,
+            roomId: msg.roomId,
+          });
+        }
+      });
+    }
+
+    // Return messages oldest → newest
+    res.json(messages.reverse());
+  } catch (err) {
+    console.error('❌ Error fetching messages:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+app.get('/api/messages/:roomID', async (req, res) => {
+  const { roomId } = req.params;
+  const { before, limit = 50, currentUserId } = req.query;
+
   try {
     // Build query
     const query = { roomId };
