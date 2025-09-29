@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const cors = require('cors');
 const mongoose = require('mongoose');
 const { Expo } = require('expo-server-sdk');
 const ChatModel = require("./models/ChatModel");
@@ -20,7 +21,12 @@ const server = http.createServer(app);
 const io = socketIo(server);
 const expo = new Expo();
 
-
+// ✅ Enable CORS
+app.use(cors({
+  origin: ["http://localhost:8081"], // adjust for frontend URL(s)
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+}));
 
 //const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
