@@ -18,7 +18,15 @@ require("dotenv").config();
 const app = express();
 app.use(express.json());
 const server = http.createServer(app);
-const io = socketIo(server);
+//const io = socketIo(server);
+// ✅ Socket.IO with CORS
+const io = socketIo(server, {
+  cors: {
+    origin: ["http://localhost:8081"],
+    methods: ["GET", "POST"],
+  },
+});
+  
 const expo = new Expo();
 
 // ✅ Enable CORS
