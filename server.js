@@ -22,8 +22,8 @@ const server = http.createServer(app);
 // ✅ Socket.IO with CORS
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:8081"],
-    methods: ["GET", "POST"],
+    origin: ["http://localhost:8081", 'https://unforested-phytoclimatologic-cedrick.ngrok-free.dev'],
+   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   },
 });
   
