@@ -31,7 +31,7 @@ const expo = new Expo();
 
 // ✅ Enable CORS
 app.use(cors({
-  origin: ["http://localhost:8081"], // adjust for frontend URL(s)
+  origin: ["http://localhost:8081", 'https://unforested-phytoclimatologic-cedrick.ngrok-free.dev'], // adjust for frontend URL(s)
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 }));
